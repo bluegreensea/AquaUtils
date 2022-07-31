@@ -57,15 +57,16 @@ public class AquaUtils implements ModInitializer {
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
         if (environment.dedicated) {
-            dispatcher.register(literal("votelastget").requires(ServerCommandSource::isExecutedByPlayer).executes(context -> {
+            dispatcher.register(literal("votelastget").requires(ServerCommandSource::isExecutedByPlayer)
+            .executes(context -> {
                 context.getSource().getPlayer().sendMessage(
                     Text.of("搶票結果: " + (voteLastStr == null ? "無記錄" : voteLastStr))
                 );
 
                 return Command.SINGLE_SUCCESS;
             }));
-            dispatcher.register(literal("voteget")
-                .executes(context -> {
+            dispatcher.register(literal("voteget").requires(ServerCommandSource::isExecutedByPlayer)
+            .executes(context -> {
                 LOGGER.debug(context.getSource().getPlayer().getName().getString() + " use voteget");
 
                 StringBuilder strings = new StringBuilder();
@@ -91,7 +92,8 @@ public class AquaUtils implements ModInitializer {
 
                 return Command.SINGLE_SUCCESS;
             })
-            .then(argument("targets", EntityArgumentType.players()).executes(ctx -> {
+            .then(argument("targets", EntityArgumentType.players()).requires(ServerCommandSource::isExecutedByPlayer)
+            .executes(ctx -> {
                 StringBuilder strings = new StringBuilder();
                 getPlayers(ctx, "targets").forEach(player -> {
                 if (voteStrs.get(player.getName()) != null)
@@ -106,6 +108,7 @@ public class AquaUtils implements ModInitializer {
             );
             dispatcher.register(literal("votereset")
             .requires(source -> source.hasPermissionLevel(4))
+            .requires(ServerCommandSource::isExecutedByPlayer)
             .then(argument("message", greedyString())
             .executes(ctx -> {
                 String options = getString(ctx, "message");
@@ -152,7 +155,7 @@ public class AquaUtils implements ModInitializer {
                 if (voteStrs.get(index) == null || !voteStrs.get(index).equals(value)) {
                     voteStrs.put(index, value);
                     lastMessage.remove(index);
-                    LOGGER.info("put " + index.getString() + " " + value);
+                    //LOGGER.info("put " + index.getString() + " " + value);
                 }
             }
         }
@@ -160,8 +163,8 @@ public class AquaUtils implements ModInitializer {
         if (!message.equals(lastMessage.getOrDefault(index, ""))) {
             lastMessage.put(index, message);
             lastTimes.put(index, 0);
-            LOGGER.debug("put " + index + " " + message);
-            LOGGER.debug("times " + lastTimes.get(index));
+            //LOGGER.info("put " + index + " " + message);
+            //LOGGER.info("times " + lastTimes.get(index));
         } else {
             if (lastTimes.get(index) < 2) {
                 lastTimes.put(index, lastTimes.get(index) + 1);
