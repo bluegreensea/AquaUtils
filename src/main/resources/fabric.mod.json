@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "aquautils",
+  "version": "${version}",
+  "name": "Aqua Utils",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "GNU Lesser General Public License version 3 (LGPLv3)",
+  "icon": "assets/aquautils/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      {
+        "value": "bluesea.aquautils.AquaUtils"
+      }
+    ]
+  },
+  "mixins": [
+    "aquautils.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.13.3",
+    "fabric-command-api-v2": "*",
+    "fabric-message-api-v1": "*",
+    "minecraft": ">=1.19"
+  }
+}
