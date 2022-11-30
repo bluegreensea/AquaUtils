@@ -20,7 +20,8 @@ dependencies {
     val loaderVersion: String by project
     modImplementation("net.fabricmc", "fabric-loader", loaderVersion)
     val fabricVersion: String by project
-    modImplementation("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
+    //modImplementation("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
+    modImplementation(fabricApi.module("fabric-command-api-v2", fabricVersion))
     //val fabricKotlinVersion: String by project
     //modImplementation("net.fabricmc", "fabric-language-kotlin", fabricKotlinVersion)
 }

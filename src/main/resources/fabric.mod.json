@@ -10,7 +10,7 @@
   "icon": "assets/aquautils/icon.png",
   "environment": "server",
   "entrypoints": {
-    "main": [
+    "server": [
       {
         "value": "bluesea.aquautils.AquaUtils"
       }
@@ -22,7 +22,6 @@
   "depends": {
     "fabricloader": ">=0.13.3",
     "fabric-command-api-v2": "*",
-    "fabric-message-api-v1": "*",
     "minecraft": ">=1.19"
   }
 }
