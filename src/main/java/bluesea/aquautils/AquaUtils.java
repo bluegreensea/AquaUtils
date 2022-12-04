@@ -4,9 +4,10 @@ import com.mojang.brigadier.Command;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,20 +21,20 @@ import static com.mojang.brigadier.arguments.BoolArgumentType.getBool;
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
-import static net.minecraft.command.argument.EntityArgumentType.getPlayers;
-import static net.minecraft.command.argument.EntityArgumentType.players;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.arguments.EntityArgument.getPlayers;
+import static net.minecraft.commands.arguments.EntityArgument.players;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class AquaUtils implements DedicatedServerModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("Aqua Utils");
 
-    private static final HashMap<Text, String> lastMessage = new HashMap<>();
-    private static final HashMap<Text, Integer> lastTimes = new HashMap<>();
+    private static final HashMap<Component, String> lastMessage = new HashMap<>();
+    private static final HashMap<Component, Integer> lastTimes = new HashMap<>();
     public static Boolean voteLast = false;
     public static Boolean voteReset = false;
     public static String voteLastStr = null;
-    public static final HashMap<Text, String> voteStrs = new HashMap<>();
+    public static final HashMap<Component, String> voteStrs = new HashMap<>();
     public static final ArrayList<String> optionStrs = new ArrayList<>(9);
     private static boolean kick;
 
@@ -41,7 +42,7 @@ public class AquaUtils implements DedicatedServerModInitializer {
     public void onInitializeServer() {
         Path path = FabricLoader.getInstance().getConfigDir().resolve("aquautils.properties");
         AquaUtilsConfig config = AquaUtilsConfig.load(path);
-        config.saveProperties(path);
+        config.store(path);
         kick = config.kick;
         LOGGER.info("Aqua Utils kick: " + kick);
         
@@ -52,7 +53,7 @@ public class AquaUtils implements DedicatedServerModInitializer {
                 String[] tmps = tmp.split("~~");
                 Text text = Text.of(tmps[0]);
                 while (tmps.length >= 3) {
-                    text = text.copy().append("\u00a7m" + tmps[1]);
+                    text = text.copy().append("§m" + tmps[1]);
 
                     tmp = tmp.replaceFirst("~~", "").replaceFirst("~~", "");
                     tmps = tmp.split("~~");
@@ -61,7 +62,7 @@ public class AquaUtils implements DedicatedServerModInitializer {
                     String messagesp1 = message.getString().replaceFirst("~~", "");
                     if (messagesp1.endsWith("~~")) {
                         messagesp1 = messagesp1.replaceFirst("~~", "");
-                        Text text = Text.of("\u00a7mtest" + messagesp1 + " :thinking:");
+                        Text text = Text.of("§mtest" + messagesp1 + " :thinking:");
                         return CompletableFuture.completedFuture(text);
                     }
                 }*//*
@@ -70,18 +71,18 @@ public class AquaUtils implements DedicatedServerModInitializer {
         );*/
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-        if (environment.dedicated) {
-            dispatcher.register(literal("aquautils").requires(ServerCommandSource::isExecutedByPlayer)
+        if (environment.includeDedicated) {
+            dispatcher.register(literal("aquautils").requires(CommandSourceStack::isPlayer)
             .executes(ctx -> {
-                ctx.getSource().getPlayer().sendMessage(
-                    Text.of("version: " + FabricLoader.getInstance().getModContainer("aquautils").get().getMetadata().getVersion().getFriendlyString())
+                ctx.getSource().getPlayer().sendSystemMessage(
+                    Component.nullToEmpty("version: " + FabricLoader.getInstance().getModContainer("aquautils").get().getMetadata().getVersion().getFriendlyString())
                 );
                 return Command.SINGLE_SUCCESS;
             })
             .then(argument("arg", string())
             .executes(ctx -> {
-                ctx.getSource().getPlayer().sendMessage(
-                    Text.of("Aqua Utils kick: " + kick)
+                ctx.getSource().getPlayer().sendSystemMessage(
+                    Component.nullToEmpty("Aqua Utils kick: " + kick)
                 );
 
                 return Command.SINGLE_SUCCESS;
@@ -89,24 +90,24 @@ public class AquaUtils implements DedicatedServerModInitializer {
             .then(argument("switch", bool())
             .executes(ctx -> {
                 kick = getBool(ctx, "switch");
-                ctx.getSource().getPlayer().sendMessage(
-                    Text.of("Aqua Utils set kick: " + kick)
+                ctx.getSource().getPlayer().sendSystemMessage(
+                    Component.nullToEmpty("Aqua Utils set kick: " + kick)
                 );
                 LOGGER.info("set kick: " + kick);
 
                 return Command.SINGLE_SUCCESS;
             })))
             );
-            dispatcher.register(literal("votelastget").requires(ServerCommandSource::isExecutedByPlayer)
+            dispatcher.register(literal("votelastget").requires(CommandSourceStack::isPlayer)
             .executes(context -> {
-                context.getSource().getPlayer().sendMessage(
-                    Text.of("搶票結果: " + (voteLastStr == null ? "無記錄" : voteLastStr))
+                context.getSource().getPlayer().sendSystemMessage(
+                    Component.nullToEmpty("搶票結果: " + (voteLastStr == null ? "無記錄" : voteLastStr))
                 );
 
                 return Command.SINGLE_SUCCESS;
             })
             );
-            dispatcher.register(literal("voteget").requires(ServerCommandSource::isExecutedByPlayer)
+            dispatcher.register(literal("voteget").requires(CommandSourceStack::isPlayer)
             .executes(context -> {
                 LOGGER.debug(context.getSource().getPlayer().getName().getString() + " use voteget");
 
@@ -136,44 +137,47 @@ public class AquaUtils implements DedicatedServerModInitializer {
 
                 strings.insert(0, firstStr + "\n");
 
-                context.getSource().getPlayer().sendMessage(
-                    Text.of("投票結果:\n" + (strings.toString().equals("")? "無記錄" : strings.toString()))
+                context.getSource().getPlayer().sendSystemMessage(
+                    Component.nullToEmpty("投票結果:\n" + (strings.toString().equals("")? "無記錄" : strings.toString()))
                 );
 
                 return Command.SINGLE_SUCCESS;
             })
-            .then(argument("targets", players()).requires(ServerCommandSource::isExecutedByPlayer)
+            .then(argument("targets", players())
             .executes(ctx -> {
                 StringBuilder strings = new StringBuilder();
                 getPlayers(ctx, "targets").forEach(player -> {
                 if (voteStrs.get(player.getName()) != null)
                     strings.append(player.getName().getString()).append(" 的投票記錄: ").append(voteStrs.get(player.getName())).append("\n");
                 });
-                ctx.getSource().getPlayer().sendMessage(
-                    Text.of(strings.toString().equals("")? "無記錄" : strings.toString())
+                ctx.getSource().getPlayer().sendSystemMessage(
+                    Component.nullToEmpty(strings.toString().equals("")? "無記錄" : strings.toString())
                 );
 
                 return Command.SINGLE_SUCCESS;
             }))
             );
-            dispatcher.register(literal("votereset")
-            .requires(source -> source.hasPermissionLevel(4))
-            .requires(ServerCommandSource::isExecutedByPlayer)
+            dispatcher.register(literal("votereset").requires(CommandSourceStack::isPlayer)
+            .requires(source -> source.hasPermission(4))
             .then(argument("message", greedyString())
             .executes(ctx -> {
                 String options = getString(ctx, "message");
                 StringBuilder Strings = new StringBuilder();
                 int i = 0;
-                for (String s : options.split(" ")) {
+                for (String option : options.split(" ")) {
                     i++;
-                    Strings.append("\u00a7e+").append(i).append("\u00a7r ").append(s).append(" ");
-                    optionStrs.add(s);
+                    Strings.append("§").append(ChatFormatting.YELLOW.getChar())
+                            .append("+").append(i)
+                            .append("§").append(ChatFormatting.RESET.getChar())
+                            .append(" ")
+                            .append(option).append(" ");
+                    optionStrs.add(option);
                     if (i >= 9) break;
                 }
                 voteStrs.clear();
                 voteReset = true;
-                ctx.getSource().getServer().getPlayerManager().broadcast(
-                    Text.translatable("chat.type.text", ctx.getSource().getPlayer().getDisplayName(), Strings.toString()),
+                ctx.getSource().getServer().getPlayerList().broadcastSystemMessage(
+                    Component.translatable("chat.type.text", ctx.getSource().getPlayer().getDisplayName(), Strings.toString()),
                     false
                 );
                 LOGGER.info(ctx.getSource().getPlayer().getName().getString() + " use votes clear");
@@ -185,13 +189,13 @@ public class AquaUtils implements DedicatedServerModInitializer {
     });
     }
 
-    public static Boolean onPlayerMessage(ServerPlayerEntity player, String message) {
-        Text index = player.getName();
+    public static Boolean onPlayerMessage(ServerPlayer player, String message) {
+        Component index = player.getName();
 
         //LOGGER.info("Mixin things start");
 
         if (message.contains("+")) {
-            if (message.startsWith("++") && player.hasPermissionLevel(4)) {
+            if (message.startsWith("++") && player.hasPermissions(4)) {
                 voteLastStr = null;
                 voteLast = true;
                 LOGGER.info(player.getName().getString() + " start vote");
@@ -221,7 +225,7 @@ public class AquaUtils implements DedicatedServerModInitializer {
                 lastTimes.put(index, lastTimes.get(index) + 1);
                 //LOGGER.info("times " + lastTimes.get(index));
             } else {
-                //player.sendMessage(Text.of("\u00a7c已重複3次(含)以上"));
+                //player.sendMessage(Text.of("§c已重複3次(含)以上"));
                 if (kick) {
                     lastTimes.put(index, 0);
                     LOGGER.info(player.getName().getString() + " 已重複3次(含)以上");

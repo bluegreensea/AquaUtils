@@ -1,10 +1,9 @@
 package bluesea.aquautils.mixin;
 
-import net.minecraft.network.message.MessageType;
-import net.minecraft.network.message.SentMessage;
-import net.minecraft.network.message.SignedMessage;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.registry.Registry;
+import net.minecraft.network.chat.ChatType;
+import net.minecraft.network.chat.OutgoingPlayerChatMessage;
+import net.minecraft.network.chat.PlayerChatMessage;
+import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -13,22 +12,22 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 public class SentMessageMixin {
-    @Mixin(SentMessage.Profileless.class)
+    @Mixin(OutgoingPlayerChatMessage.NotTracked.class)
     static class SentMessageProfilelessMixin {
         @Shadow @Final
-        private SignedMessage message;
+        private PlayerChatMessage message;
 
-        @Inject(method = "send", at = @At(value = "HEAD"), cancellable = true)
-        public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params, CallbackInfo ci) {
+        @Inject(method = "sendToPlayer", at = @At(value = "HEAD"), cancellable = true)
+        public void send(ServerPlayer serverPlayer, boolean bl, ChatType.Bound bound, CallbackInfo ci) {
         }
     }
-    @Mixin(SentMessage.Chat.class)
+    @Mixin(OutgoingPlayerChatMessage.Tracked.class)
     static class SentMessageChatMixin {
         @Shadow @Final
-        private SignedMessage message;
+        private PlayerChatMessage message;
 
-        @Inject(method = "send", at = @At(value = "HEAD"), cancellable = true)
-        public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params, CallbackInfo ci) {
+        @Inject(method = "sendToPlayer", at = @At(value = "HEAD"), cancellable = true)
+        public void send(ServerPlayer serverPlayer, boolean bl, ChatType.Bound bound, CallbackInfo ci) {
         }
     }
 }
