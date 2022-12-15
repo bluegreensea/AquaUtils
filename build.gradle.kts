@@ -1,53 +1,74 @@
 plugins {
-    id("fabric-loom")
     val kotlinVersion: String by System.getProperties()
     kotlin("jvm").version(kotlinVersion)
+    checkstyle
+    id("net.kyori.blossom").version("1.2.0")
 }
-base {
-    val archivesBaseName: String by project
-    archivesName.set(archivesBaseName)
+val ktlint by configurations.creating
+allprojects {
+    repositories {
+        mavenCentral()
+    }
 }
-val modVersion: String by project
-version = modVersion
-val mavenGroup: String by project
-group = mavenGroup
-repositories {}
 dependencies {
-    val minecraftVersion: String by project
-    minecraft("com.mojang", "minecraft", minecraftVersion)
-    //val yarnMappings: String by project
-    //mappings("net.fabricmc", "yarn", yarnMappings, null, "v2")
-    mappings(loom.officialMojangMappings())
-    val loaderVersion: String by project
-    modImplementation("net.fabricmc", "fabric-loader", loaderVersion)
-    val fabricVersion: String by project
-    //modImplementation("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
-    modImplementation(fabricApi.module("fabric-command-api-v2", fabricVersion))
-    //val fabricKotlinVersion: String by project
-    //modImplementation("net.fabricmc", "fabric-language-kotlin", fabricKotlinVersion)
+    ktlint("com.pinterest:ktlint:0.47.1") {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+        }
+    }
 }
-tasks {
-    val javaVersion = JavaVersion.VERSION_17
-    withType<JavaCompile> {
-        options.encoding = "UTF-8"
-        sourceCompatibility = javaVersion.toString()
-        targetCompatibility = javaVersion.toString()
-        options.release.set(javaVersion.toString().toInt())
+val ktlintCheck by tasks.creating(JavaExec::class) {
+    inputs.files(project.fileTree(mapOf("dir" to "src", "include" to "**/*.kt")))
+    outputs.dir("${project.buildDir}/reports/ktlint/")
+    description = "Check Kotlin code style."
+    classpath = ktlint
+    mainClass.set("com.pinterest.ktlint.Main")
+    // see https://pinterest.github.io/ktlint/install/cli/#command-line-usage for more information
+    args = listOf("**/*.kt", "**/*.kts")
+}
+subprojects {
+    apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "checkstyle")
+    apply(plugin = "net.kyori.blossom")
+    checkstyle {
+        toolVersion = "10.5.0"
+        configFile = rootProject.file("checkstyle.xml")
+        maxErrors = 0
+        maxWarnings = 0
     }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions { jvmTarget = javaVersion.toString() }
-        //sourceCompatibility = javaVersion.toString()
-        //targetCompatibility = javaVersion.toString()
+    base {
+        val archivesBaseName: String by project
+        archivesName.set("${archivesBaseName}-${project.name}")
     }
-    jar { from("LICENSE") { rename { "${it}_${base.archivesName.get()}" } } }
-    processResources {
-        inputs.property("version", project.version)
-        filesMatching("fabric.mod.json") { expand(mutableMapOf("version" to project.version)) }
+    val modVersion: String by project
+    version = modVersion
+    val mavenGroup: String by project
+    group = mavenGroup
+    repositories {
+        maven("https://libraries.minecraft.net")
     }
-    java {
-        toolchain { languageVersion.set(JavaLanguageVersion.of(javaVersion.toString())) }
-        sourceCompatibility = javaVersion
-        targetCompatibility = javaVersion
-        withSourcesJar()
+    dependencies {
+        compileOnly("com.mojang:brigadier:1.0.18")
+    }
+    tasks {
+        val javaVersion = JavaVersion.VERSION_17
+        withType<JavaCompile> {
+            options.encoding = "UTF-8"
+            sourceCompatibility = javaVersion.toString()
+            targetCompatibility = javaVersion.toString()
+            options.release.set(javaVersion.toString().toInt())
+        }
+        withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+            kotlinOptions { jvmTarget = javaVersion.toString() }
+            // sourceCompatibility = javaVersion.toString()
+            // targetCompatibility = javaVersion.toString()
+        }
+        jar { from("LICENSE") { rename { "${it}_${base.archivesName.get()}" } } }
+        java {
+            toolchain {languageVersion.set(JavaLanguageVersion.of(javaVersion.toString())) }
+            sourceCompatibility = javaVersion
+            targetCompatibility = javaVersion
+            withSourcesJar()
+        }
     }
 }

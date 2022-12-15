@@ -11,3 +11,6 @@ pluginManagement {
         kotlin("jvm").version(kotlinVersion)
     }
 }
+
+rootProject.name = "AquaUtils"
+include("common", "fabric", "velocity")

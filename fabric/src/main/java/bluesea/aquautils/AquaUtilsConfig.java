@@ -1,10 +1,9 @@
 package bluesea.aquautils;
 
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.server.dedicated.Settings;
-
 import java.nio.file.Path;
 import java.util.Properties;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.server.dedicated.Settings;
 
 public class AquaUtilsConfig extends Settings<AquaUtilsConfig> {
     public final boolean kick;

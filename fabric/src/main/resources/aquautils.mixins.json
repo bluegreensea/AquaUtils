@@ -4,13 +4,11 @@
   "package": "bluesea.aquautils.mixin",
   "compatibilityLevel": "JAVA_17",
   "server": [
-    "SentMessageMixin$SentMessageChatMixin",
-    "ServerPlayNetworkHandlerMixin"
+    "OutgoingPlayerChatMessageMixin$NotTrackedMixin",
+    "OutgoingPlayerChatMessageMixin$TrackedMixin",
+    "ServerGamePacketListenerImplMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "mixins": [
-    "SentMessageMixin$SentMessageProfilelessMixin"
-  ]
+  }
 }
