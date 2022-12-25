@@ -33,7 +33,7 @@ public class PluginCommand implements SimpleCommand {
 
     @Override
     public List<String> suggest(Invocation invocation) {
-        if (invocation.alias().equals("vkick") && invocation.arguments().length == 0) {
+        if (invocation.alias().equals("vkick") && invocation.arguments().length <= 1) {
             return AquaUtilsVelocity.getServer().getAllPlayers().stream().map(Player::getUsername).collect(Collectors.toList());
         }
         return SimpleCommand.super.suggest(invocation);
