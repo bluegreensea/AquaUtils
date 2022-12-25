@@ -11,7 +11,7 @@ allprojects {
     }
 }
 dependencies {
-    ktlint("com.pinterest:ktlint:0.47.1") {
+    ktlint("com.pinterest:ktlint:0.48.0") {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
         }

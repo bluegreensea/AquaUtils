@@ -118,7 +118,7 @@ public class AquaUtils implements DedicatedServerModInitializer {
                         votes.forEach((k, v) -> {
                             try {
                                 Integer.parseInt(k.substring(1));
-                                strings.append(k).append(optionStrs.get(Integer.parseInt(k.substring(1)) - 1))
+                                strings.append(k).append(" ").append(optionStrs.get(Integer.parseInt(k.substring(1)) - 1))
                                .append(" 人數: ").append(v).append("\n");
                                 if (v >= first.get()) {
                                     firstStr.set(k);
@@ -139,7 +139,7 @@ public class AquaUtils implements DedicatedServerModInitializer {
                         strings.insert(0, firstStr + "\n");
 
                         context.getSource().getPlayer().sendSystemMessage(
-                            Component.nullToEmpty("投票結果:\n" + (strings.toString().equals("") ? "無記錄" : strings.toString()))
+                            Component.nullToEmpty("投票結果: " + (strings.toString().equals("\n") ? "無記錄" : strings.toString()))
                         );
 
                         return Command.SINGLE_SUCCESS;

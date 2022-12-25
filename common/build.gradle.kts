@@ -1,6 +1,7 @@
 dependencies {
-    api("net.kyori:adventure-api:4.12.0")
+    val kyoriVersion: String by project
+    api("net.kyori:adventure-api:$kyoriVersion")
 }
 blossom {
-    replaceToken("\${version}", version, "src/main/java/bluesea/aquautils/common/Processor.java")
+    replaceToken("\${version}", version, "src/main/java/bluesea/aquautils/common/Controller.java")
 }
