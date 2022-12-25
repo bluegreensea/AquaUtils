@@ -48,7 +48,9 @@ public class Controller {
                 .append(Component.text(voteStr).color(NamedTextColor.YELLOW).appendSpace())
                 .append(Component.text(optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1)))
                 .append(Component.text(" 人數: " + votes));
-            if (votes >= firstVotes) {
+            if (firstVotes.equals(votes)) {
+                firstStr = firstVotes + ", " + optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1);
+            } else if (votes >= firstVotes) {
                 firstStr = optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1);
                 firstVotes = votes;
             }
@@ -81,7 +83,7 @@ public class Controller {
             textComponent = textComponent
                 .append(Component.text("+" + i).color(NamedTextColor.YELLOW))
                 .append(Component.space())
-                .append(Component.text(option + " ").color(NamedTextColor.BLUE));
+                .append(Component.text(option + " "));
             optionStrs.add(option);
             if (i >= 9) {
                 break;
