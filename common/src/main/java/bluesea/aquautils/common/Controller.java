@@ -34,7 +34,7 @@ public class Controller {
         final HashMap<String, Integer> allVotes = new HashMap<>();
         voteStrs.forEach((k, v) -> allVotes.put(v, allVotes.getOrDefault(v, 0) + 1));
         Integer firstVotes = 0;
-        String firstStr = "";
+        StringBuilder firstStr = new StringBuilder();
         for (HashMap.Entry<String, Integer> entry : allVotes.entrySet()) {
             String voteStr = entry.getKey();
             Integer votes = entry.getValue();
@@ -49,9 +49,9 @@ public class Controller {
                 .append(Component.text(optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1)))
                 .append(Component.text(" 人數: " + votes));
             if (firstVotes.equals(votes)) {
-                firstStr = firstVotes + ", " + optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1);
+                firstStr.append(", ").append(optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1));
             } else if (votes >= firstVotes) {
-                firstStr = optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1);
+                firstStr = new StringBuilder(optionStrs.get(Integer.parseInt(voteStr.substring(1)) - 1));
                 firstVotes = votes;
             }
         }
@@ -66,7 +66,7 @@ public class Controller {
         }
 
         //strings.insert(0, firstStr + "\n");
-        textComponent = Component.text(firstStr).append(textComponent);
+        textComponent = Component.text(firstStr.toString()).append(textComponent);
 
         player.sendMessage(
             //Component.text("投票結果: " + (strings.toString().equals("\n") ? "無記錄" : strings.toString()))
