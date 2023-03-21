@@ -2,6 +2,7 @@ plugins {
     id("fabric-loom")
 }
 dependencies {
+    api(rootProject.project("common"))
     val minecraftVersion: String by project
     minecraft("com.mojang", "minecraft", minecraftVersion)
     // val yarnMappings: String by project

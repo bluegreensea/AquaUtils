@@ -2,7 +2,7 @@ plugins {
     val kotlinVersion: String by System.getProperties()
     kotlin("jvm").version(kotlinVersion)
     checkstyle
-    id("net.kyori.blossom").version("1.2.0")
+    id("net.kyori.blossom").version("1.3.1")
 }
 val ktlint by configurations.creating
 allprojects {
@@ -17,15 +17,6 @@ dependencies {
         }
     }
 }
-val ktlintCheck by tasks.creating(JavaExec::class) {
-    inputs.files(project.fileTree(mapOf("dir" to "src", "include" to "**/*.kt")))
-    outputs.dir("${project.buildDir}/reports/ktlint/")
-    description = "Check Kotlin code style."
-    classpath = ktlint
-    mainClass.set("com.pinterest.ktlint.Main")
-    // see https://pinterest.github.io/ktlint/install/cli/#command-line-usage for more information
-    args = listOf("**/*.kt", "**/*.kts")
-}
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "checkstyle")
@@ -38,7 +29,7 @@ subprojects {
     }
     base {
         val archivesBaseName: String by project
-        archivesName.set("${archivesBaseName}-${project.name}")
+        archivesName.set("$archivesBaseName-${project.name}")
     }
     val modVersion: String by project
     version = modVersion
@@ -48,11 +39,23 @@ subprojects {
         maven("https://libraries.minecraft.net")
     }
     dependencies {
+        compileOnly(kotlin("stdlib"))
+        compileOnly(kotlin("reflect"))
+
         compileOnly("com.mojang:brigadier:1.0.18")
     }
     tasks {
+        val ktlintCheck by creating(JavaExec::class) {
+            inputs.files(project.fileTree(mapOf("dir" to "src", "include" to "**/*.kt")))
+            outputs.dir("${project.buildDir}/reports/ktlint/")
+            description = "Check Kotlin code style."
+            classpath = ktlint
+            mainClass.set("com.pinterest.ktlint.Main")
+            args = listOf("src/**/*.kt", "**/*.kts")
+        }
         val javaVersion = JavaVersion.VERSION_17
         withType<JavaCompile> {
+            dependsOn(ktlintCheck)
             options.encoding = "UTF-8"
             sourceCompatibility = javaVersion.toString()
             targetCompatibility = javaVersion.toString()
@@ -65,7 +68,7 @@ subprojects {
         }
         jar { from("LICENSE") { rename { "${it}_${base.archivesName.get()}" } } }
         java {
-            toolchain {languageVersion.set(JavaLanguageVersion.of(javaVersion.toString())) }
+            toolchain { languageVersion.set(JavaLanguageVersion.of(javaVersion.toString())) }
             sourceCompatibility = javaVersion
             targetCompatibility = javaVersion
             withSourcesJar()

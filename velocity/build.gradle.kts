@@ -1,8 +1,7 @@
-import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.archivesName
-
 plugins {
+    kotlin("kapt")
     id("xyz.jpenilla.run-velocity").version("2.0.1")
-    id("com.github.johnrengelman.shadow").version("7.1.2")
+    id("com.github.johnrengelman.shadow").version("8.0.0")
 }
 val velocityVersion: String by project
 repositories {
@@ -13,24 +12,31 @@ repositories {
 dependencies {
     api(rootProject.project("common"))
 
-    compileOnly("com.google.code.gson:gson:2.10")
-    compileOnly("org.yaml:snakeyaml:1.33")
+    compileOnly("com.google.code.gson:gson:2.10.1")
+    compileOnly("org.yaml:snakeyaml:2.0")
 
-    val kyoriVersion: String by project
-    implementation("net.kyori:adventure-api:$kyoriVersion")
-    implementation("net.kyori:adventure-text-serializer-gson:$kyoriVersion")
+    val adventureVersion: String by project
+    implementation("net.kyori:adventure-api:$adventureVersion")
+    implementation("net.kyori:adventure-text-serializer-gson:$adventureVersion")
+
     compileOnly("com.velocitypowered:velocity-api:$velocityVersion")
-    annotationProcessor("com.velocitypowered:velocity-api:$velocityVersion")
+    kapt("com.velocitypowered:velocity-api:$velocityVersion")
 }
 blossom {
-    replaceToken("\${version}", version, "src/main/java/bluesea/aquautils/AquaUtilsVelocity.java")
+    replaceToken("\\\${version}", version, "src/main/java/bluesea/aquautils/AquaUtilsVelocity.kt")
 }
 tasks {
+    register<Copy>("distRun") {
+        dependsOn(shadowJar)
+        from(shadowJar.get().archiveFile.get())
+        into("run/plugins")
+    }
     runVelocity {
         velocityVersion(velocityVersion)
     }
     shadowJar {
-        archiveFileName.set("${archivesName.get()}-shadowJar.jar")
+        archiveClassifier.set("shadowJar")
+        archiveVersion.set("")
     }
 }
 artifacts {
