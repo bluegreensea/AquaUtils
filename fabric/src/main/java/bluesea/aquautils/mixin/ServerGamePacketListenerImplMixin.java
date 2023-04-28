@@ -5,10 +5,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.LastSeenMessages;
 import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundChatPacket;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,8 +15,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerGamePacketListenerImplMixin {
-    @Shadow @Final
-    private MinecraftServer server;
     @Shadow
     public ServerPlayer player;
     @Shadow
@@ -35,7 +31,7 @@ public abstract class ServerGamePacketListenerImplMixin {
     }
 
     @Inject(at = @At("HEAD"), method = "performChatCommand")
-    private void onCommandExecution(ServerboundChatCommandPacket serverboundChatCommandPacket,
+    private void onPerformChatCommand(ServerboundChatCommandPacket serverboundChatCommandPacket,
                                     LastSeenMessages lastSeenMessages, CallbackInfo ci) {
         if (this.chatSpamTickCount > 20) {
             this.chatSpamTickCount -= 20;

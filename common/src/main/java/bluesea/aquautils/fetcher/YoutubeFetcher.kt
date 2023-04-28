@@ -1,8 +1,9 @@
 package bluesea.aquautils.fetcher
 
-import bluesea.aquautils.common.Controller
+import bluesea.aquautils.common.LegacyController
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
+import java.awt.Color
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -31,15 +32,6 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
         _liveChatApiUri = String.format(LIVE_CHAT_API_URI_FORMAT, liveId)
     }
 
-    private enum class RendererType {
-        LiveChatTextMessageRenderer,
-        LiveChatPaidMessageRenderer,
-        LiveChatPaidStickerRenderer,
-        LiveChatMembershipItemRenderer,
-        LiveChatSponsorshipsGiftPurchaseAnnouncementRenderer,
-        LiveChatSponsorshipsGiftRedemptionAnnouncementRenderer
-    }
-
     @Synchronized
     fun fetch() {
         if (_liveId.isEmpty()) return
@@ -60,8 +52,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
 
             val apiKey = ytCfgJsonObject.asJsonObject["INNERTUBE_API_KEY"].asString
             val innerTubeContext = ytCfgJsonObject.asJsonObject["INNERTUBE_CONTEXT"].asJsonObject
-            val clientData = gson
-                .fromJson(innerTubeContext["client"], YoutubeChatRequestData.ClientData::class.java)
+            val clientData = gson.fromJson(innerTubeContext["client"], YoutubeChatRequestData.ClientData::class.java)
             clientData.acceptHeader =
                 "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
             clientData.connectionType = "CONN_CELLULAR_4G"
@@ -86,8 +77,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
             val ytInitialDataJsonContent = extractYtInitialDataJsonRegEx
                 .find(ytInitialData.wholeData)!!
                 .groupValues[1]
-            val ytInitialDataJsonObject = gson
-                .fromJson(ytInitialDataJsonContent, JsonElement::class.java)
+            val ytInitialDataJsonObject = gson.fromJson(ytInitialDataJsonContent, JsonElement::class.java)
 
             val continuation = (
                 ytInitialDataJsonObject.asJsonObject
@@ -130,7 +120,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
                 )
             )
 
-            Controller.LOGGER.info("Preset done!")
+            LegacyController.LOGGER.info("Preset done!")
             initialComments.forEach { comment ->
                 allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
             }
@@ -174,6 +164,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
                         }
                     }
                 } catch (_: NullPointerException) {
+                    break
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -207,37 +198,31 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
 
             if (liveChatTextMessageRenderer != null) {
                 _ConvertToComment(
-                    RendererType.LiveChatTextMessageRenderer,
                     existedUserIds,
                     liveChatTextMessageRenderer
                 )
             } else if (liveChatPaidMessageRenderer != null) {
                 _ConvertToComment(
-                    RendererType.LiveChatPaidMessageRenderer,
                     existedUserIds,
                     liveChatPaidMessageRenderer
                 )
             } else if (liveChatPaidStickerRenderer != null) {
                 _ConvertToComment(
-                    RendererType.LiveChatPaidStickerRenderer,
                     existedUserIds,
                     liveChatPaidStickerRenderer
                 )
             } else if (liveChatMembershipItemRenderer != null) {
                 _ConvertToComment(
-                    RendererType.LiveChatMembershipItemRenderer,
                     existedUserIds,
                     liveChatMembershipItemRenderer
                 )
             } else if (liveChatSponsorshipsGiftPurchaseAnnouncementRenderer != null) {
                 _ConvertToComment(
-                    RendererType.LiveChatSponsorshipsGiftPurchaseAnnouncementRenderer,
                     existedUserIds,
                     liveChatSponsorshipsGiftPurchaseAnnouncementRenderer
                 )
             } else if (liveChatSponsorshipsGiftRedemptionAnnouncementRenderer != null) {
                 _ConvertToComment(
-                    RendererType.LiveChatSponsorshipsGiftRedemptionAnnouncementRenderer,
                     existedUserIds,
                     liveChatSponsorshipsGiftRedemptionAnnouncementRenderer
                 )
@@ -252,43 +237,29 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
         if (runNode.asJsonObject.has("emoji")) {
             runNode.asJsonObject["emoji"].asJsonObject["shortcuts"].asJsonArray[0].asString
         } else {
-            _BoldText(runNode, _ItalicText(runNode, runNode.asJsonObject["text"].asString))
+            runNode.asJsonObject["text"].asString
         }
 
     @Suppress("FunctionName")
-    private fun _DecorateText(runNode: JsonElement, nodeName: String, htmlName: String, text: String): String =
-        if (runNode.asJsonObject.has(nodeName) && runNode.asJsonObject[nodeName].asBoolean) {
-            "<$htmlName>$text</$htmlName>"
-        } else {
-            text
-        }
+    private fun _ConvertToComment(existedUserIds: HashSet<String>, renderer: JsonElement): JsonElement {
+        val rendererJsonObject = renderer.asJsonObject
 
-    @Suppress("FunctionName")
-    private fun _BoldText(runNode: JsonElement, text: String): String =
-        _DecorateText(runNode, "bold", "strong", text)
-
-    @Suppress("FunctionName")
-    private fun _ItalicText(runNode: JsonElement, text: String): String =
-        _DecorateText(runNode, "italic", "em", text)
-
-    @Suppress("FunctionName")
-    private fun _ConvertToComment(rendererType: RendererType, existedUserIds: HashSet<String>, renderer: JsonElement): JsonElement {
-        val name = renderer.asJsonObject["authorName"].asJsonObject["simpleText"].asString
+        val name = rendererJsonObject["authorName"].asJsonObject["simpleText"].asString
         val paidText =
-            if ((renderer.asJsonObject["purchaseAmountText"] != null)) {
-                renderer.asJsonObject["purchaseAmountText"].asJsonObject["simpleText"].asString
+            if ((rendererJsonObject["purchaseAmountText"] != null)) {
+                rendererJsonObject["purchaseAmountText"].asJsonObject["simpleText"].asString
             } else {
                 ""
             }
         val comment =
-            renderer.asJsonObject["message"].asJsonObject["runs"].asJsonArray.joinToString("") { _ConvertRunNode(it) }
+            rendererJsonObject["message"].asJsonObject["runs"].asJsonArray.joinToString("") { _ConvertRunNode(it) }
                 .ifEmpty {
-                    renderer.asJsonObject["headerSubtext"].asJsonObject["runs"].asJsonArray.joinToString("") { _ConvertRunNode(it) }
+                    rendererJsonObject["headerSubtext"].asJsonObject["runs"].asJsonArray.joinToString("") { _ConvertRunNode(it) }
                         .ifEmpty {
-                            "<img src=\"${renderer.asJsonObject["sticker"].asJsonObject["thumbnails"].asJsonArray[0].asJsonObject["url"].asString}\"/>"
+                            "<img src=\"${rendererJsonObject["sticker"].asJsonObject["thumbnails"].asJsonArray[0].asJsonObject["url"].asString}\"/>"
                         }
                 }
-        val userId = "yt-${renderer.asJsonObject["authorExternalChannelId"].asString}"
+        val userId = "yt-${rendererJsonObject["authorExternalChannelId"].asString}"
         existedUserIds.add(userId)
 
         val result = gson.toJsonTree(
@@ -312,31 +283,16 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
             )
         )
 
-        // if (paidText.isNotEmpty()) {
-        //     val paidTextRegex = Regex(PAID_TEXT_REGEX_PATTERN)
-        //     val paidTextMatches = paidTextRegex.findAll(paidText)
-        //
-        //     // val colorKeys = new Dictionary<string, string[]> {
-        //     //     {"headerBackgroundColor", new [] {"headerBackgroundColor", "moneyChipBackgroundColor"}},
-        //     //     {"headerTextColor", new [] {"headerTextColor", "moneyChipTextColor"}},
-        //     //     {"bodyBackgroundColor", new [] {"bodyBackgroundColor", "backgroundColor"}},
-        //     //     {"bodyTextColor", new [] {"bodyTextColor", "moneyChipTextColor"}},
-        //     //     {"authorNameTextColor", new [] {"authorNameTextColor"}},
-        //     //     {"timestampColor", new [] {"timestampColor"}}
-        //     // }
-        //
-        //     result.asJsonArray.add(paidText)
-        //     result.asJsonArray.add(if (paidTextMatches.count() > 0) paidTextMatches.first().groupValues[0] else "")
-        //     result.asJsonArray.add(if (paidTextMatches.count() > 0) paidTextMatches.first().groupValues[1] else "")
-        //     // result["data"].asJsonObject.addProperty(
-        //     //     "colors", new JsonObject(colorKeys
-        //     //     .Where(keyGroup => keyGroup.Value.Any(key => renderer[key] != null))
-        //     //     .Select(keyGroup => (Key: keyGroup.Key, Value: keyGroup.Value.First(key => renderer[key] != null)))
-        //     //     .Select(keyGroup =>
-        //     //     new KeyValuePair<string, JsonNode?>(keyGroup.Key,
-        //     //     _ToCssColorString(Color.FromArgb(unchecked((int) renderer[keyGroup.Value].GetValue<uint>()))))))
-        //     // )
-        // }
+        if (paidText.isNotBlank()) {
+            val color = Color(rendererJsonObject["bodyBackgroundColor"].asInt)
+            val red = color.red
+            val green = color.green
+            val blue = color.blue
+            result.asJsonArray[1].asJsonObject.addProperty(
+                "color",
+                String.format("#%02x%02x%02x", red, green, blue)
+            )
+        }
 
         return result
     }

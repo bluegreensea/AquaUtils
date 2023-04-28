@@ -4,14 +4,14 @@ plugins {
     checkstyle
     id("net.kyori.blossom").version("1.3.1")
 }
-val ktlint by configurations.creating
+val ktlint: Configuration by configurations.creating
 allprojects {
     repositories {
         mavenCentral()
     }
 }
 dependencies {
-    ktlint("com.pinterest:ktlint:0.48.0") {
+    ktlint("com.pinterest:ktlint:0.49.0") {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
         }
@@ -39,10 +39,14 @@ subprojects {
         maven("https://libraries.minecraft.net")
     }
     dependencies {
-        compileOnly(kotlin("stdlib"))
-        compileOnly(kotlin("reflect"))
+        val kotlinVersion: String by System.getProperties()
+        compileOnly("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+        compileOnly("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
 
         compileOnly("com.mojang:brigadier:1.0.18")
+        val cloudVersion: String by project
+        implementation("cloud.commandframework:cloud-core:$cloudVersion")
+        implementation("cloud.commandframework:cloud-brigadier:$cloudVersion")
     }
     tasks {
         val ktlintCheck by creating(JavaExec::class) {
@@ -68,7 +72,7 @@ subprojects {
         }
         jar { from("LICENSE") { rename { "${it}_${base.archivesName.get()}" } } }
         java {
-            toolchain { languageVersion.set(JavaLanguageVersion.of(javaVersion.toString())) }
+            toolchain.languageVersion.set(JavaLanguageVersion.of(javaVersion.toString()))
             sourceCompatibility = javaVersion
             targetCompatibility = javaVersion
             withSourcesJar()

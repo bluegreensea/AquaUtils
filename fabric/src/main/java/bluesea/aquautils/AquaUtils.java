@@ -4,13 +4,16 @@ import com.mojang.brigadier.Command;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import net.fabricmc.api.DedicatedServerModInitializer;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +28,7 @@ import static net.minecraft.commands.arguments.EntityArgument.players;
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
-public class AquaUtils implements DedicatedServerModInitializer {
+public class AquaUtils implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("Aqua Utils");
 
     private static final HashMap<Component, String> lastMessage = new HashMap<>();
@@ -38,6 +41,14 @@ public class AquaUtils implements DedicatedServerModInitializer {
     private static boolean kick;
 
     @Override
+    public void onInitialize() {
+        switch (FabricLoader.getInstance().getEnvironmentType()) {
+            case SERVER -> onInitializeServer();
+            case CLIENT -> onInitializeClient();
+            default -> { }
+        }
+    }
+
     public void onInitializeServer() {
         Path path = FabricLoader.getInstance().getConfigDir().resolve("aquautils.properties");
         AquaUtilsConfig config = AquaUtilsConfig.load(path);
@@ -192,6 +203,13 @@ public class AquaUtils implements DedicatedServerModInitializer {
                 );
             }
         });
+    }
+
+    public void onInitializeClient() {
+        ClientPlayNetworking.registerGlobalReceiver(Objects.requireNonNull(ResourceLocation.tryParse("aquautils:test")), (client, handler, buf, responseSender) -> {
+            LOGGER.info("Test");
+        });
+        LOGGER.info("Loaded");
     }
 
     public static Boolean onPlayerMessage(ServerPlayer player, String message) {

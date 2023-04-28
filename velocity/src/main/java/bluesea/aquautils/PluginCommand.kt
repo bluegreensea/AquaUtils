@@ -1,6 +1,6 @@
 package bluesea.aquautils
 
-import bluesea.aquautils.common.Controller
+import bluesea.aquautils.common.LegacyController
 import bluesea.aquautils.fetcher.YoutubeFetcher
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -14,7 +14,6 @@ import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
-import java.util.function.Consumer
 
 object PluginCommand {
     fun vkickCreateBrigadierCommand(server: ProxyServer): BrigadierCommand {
@@ -27,13 +26,11 @@ object PluginCommand {
                         if ("@a".contains(ctx.input.substring(6).lowercase())) {
                             builder.suggest("\"@a\"")
                         }
-                        server.allPlayers.forEach(
-                            Consumer { player: Player ->
-                                if (player.username.lowercase().contains(ctx.input.substring(6).lowercase())) {
-                                    builder.suggest(player.username)
-                                }
+                        server.allPlayers.forEach {
+                            if (it.username.lowercase().contains(ctx.input.substring(6).lowercase())) {
+                                builder.suggest(it.username)
                             }
-                        )
+                        }
                         builder.buildFuture()
                     }
                     .executes { ctx: CommandContext<CommandSource> ->
@@ -82,13 +79,11 @@ object PluginCommand {
             .then(
                 RequiredArgumentBuilder.argument<CommandSource, String>("targets", StringArgumentType.word())
                     .suggests { ctx: CommandContext<CommandSource>, builder: SuggestionsBuilder ->
-                        server.allPlayers.forEach(
-                            Consumer { player: Player ->
-                                if (player.username.lowercase().contains(ctx.input.substring(10).lowercase())) {
-                                    builder.suggest(player.username)
-                                }
+                        server.allPlayers.forEach {
+                            if (it.username.lowercase().contains(ctx.input.substring(10).lowercase())) {
+                                builder.suggest(it.username)
                             }
-                        )
+                        }
                         builder.buildFuture()
                     }
                     .executes { ctx: CommandContext<CommandSource> ->
@@ -118,9 +113,9 @@ object PluginCommand {
                         builder.buildFuture()
                     }
                     .executes { ctx ->
-                        if (AquaUtilsVelocity.ytChatLooper != null && AquaUtilsVelocity.ytChatLooper!!.isAlive) {
-                            AquaUtilsVelocity.ytChatLooper!!.interrupt()
-                            Controller.LOGGER.info("YTChat 已關閉!")
+                        if (LegacyController.ytChatLooper != null && LegacyController.ytChatLooper!!.isAlive) {
+                            LegacyController.ytChatLooper!!.interrupt()
+                            LegacyController.LOGGER.info("YTChat 已關閉!")
                         } else {
                             ctx.source.sendMessage(
                                 Component.empty()
@@ -134,25 +129,25 @@ object PluginCommand {
                     .then(
                         RequiredArgumentBuilder.argument<CommandSource, String>("videoid", StringArgumentType.word())
                             .executes { ctx: CommandContext<CommandSource> ->
-                                if (AquaUtilsVelocity.ytChatLooper == null || !AquaUtilsVelocity.ytChatLooper!!.isAlive) {
-                                    AquaUtilsVelocity.ytChatLooper = Thread {
+                                if (LegacyController.ytChatLooper == null || !LegacyController.ytChatLooper!!.isAlive) {
+                                    LegacyController.ytChatLooper = Thread {
                                         YoutubeFetcher(
                                             server,
                                             StringArgumentType.getString(ctx, "videoid")
                                         ).fetch()
                                     }
-                                    AquaUtilsVelocity.ytChatLooper!!.start()
+                                    LegacyController.ytChatLooper!!.start()
                                     server.sendMessage(
                                         Component.empty()
                                             .append(Component.text("[YTChat] ").color(NamedTextColor.RED))
                                             .append(Component.text("啟動成功!"))
                                     )
-                                    Controller.LOGGER.info("YTChat 啟動成功!")
+                                    LegacyController.LOGGER.info("YTChat 啟動成功!")
                                 } else {
                                     ctx.source.sendMessage(
                                         Component.empty()
                                             .append(Component.text("[YTChat] ").color(NamedTextColor.RED))
-                                            .append(Component.text("已經啟動!"))
+                                            .append(Component.text("啟動失敗－已經啟動!"))
                                     )
                                 }
 

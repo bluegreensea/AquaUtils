@@ -1,6 +1,5 @@
 root = true
 
-# Generate from checkstyle
 [*]
 charset = utf-8
 end_of_line = lf
@@ -10,8 +9,6 @@ insert_final_newline = true
 max_line_length = off
 tab_width = 4
 ij_continuation_indent_size = 8
-ij_formatter_off_tag = @formatter:off
-ij_formatter_on_tag = @formatter:on
 ij_formatter_tags_enabled = false
 ij_smart_tabs = false
 ij_visual_guides = none
@@ -284,11 +281,12 @@ ij_java_wrap_long_lines = false
 
 # Custom
 [*.{gradle.kts,kt,kts}]
-ij_kotlin_allow_trailing_comma_on_call_site = false
 ij_kotlin_allow_trailing_comma = false
+ij_kotlin_allow_trailing_comma_on_call_site = false
 ij_kotlin_block_comment_add_space = true
 ij_kotlin_block_comment_at_first_column = false
 ij_kotlin_line_comment_add_space = true
 ij_kotlin_line_comment_at_first_column = false
+ij_kotlin_imports_layout = *
 ij_kotlin_name_count_to_use_star_import = 2147483647
 ij_kotlin_name_count_to_use_star_import_for_members = 2147483647

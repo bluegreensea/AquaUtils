@@ -10,8 +10,8 @@ dependencies {
     api("net.kyori:adventure-api:$adventureVersion")
     api("net.kyori:adventure-text-serializer-gson:$adventureVersion")
 
-    compileOnly("org.slf4j:slf4j-api:2.0.6")
-    compileOnly("org.apache.logging.log4j:log4j-api:2.19.0")
+    compileOnly("org.slf4j:slf4j-api:2.0.7")
+    compileOnly("org.apache.logging.log4j:log4j-api:2.20.0")
 
     implementation("org.jsoup:jsoup:1.15.4")
 

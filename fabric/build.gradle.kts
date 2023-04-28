@@ -13,9 +13,10 @@ dependencies {
     val fabricVersion: String by project
     // modImplementation("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
     modImplementation(fabricApi.module("fabric-command-api-v2", fabricVersion))
-    // val fabricKotlinVersion: String by project
-    // modImplementation("net.fabricmc", "fabric-language-kotlin", fabricKotlinVersion)
-    modImplementation(include("net.kyori:adventure-platform-fabric:5.6.0")!!)
+    modImplementation(fabricApi.module("fabric-networking-api-v1", fabricVersion))
+    val fabricKotlinVersion: String by project
+    modImplementation("net.fabricmc", "fabric-language-kotlin", fabricKotlinVersion)
+    // modImplementation(include("net.kyori:adventure-platform-fabric:5.6.0")!!)
 }
 tasks {
     processResources {
