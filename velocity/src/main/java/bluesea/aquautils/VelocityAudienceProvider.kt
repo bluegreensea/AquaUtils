@@ -2,30 +2,29 @@ package bluesea.aquautils
 
 import bluesea.aquautils.common.CommonAudienceProvider
 import com.velocitypowered.api.command.CommandSource
+import com.velocitypowered.api.proxy.ProxyServer
 import net.kyori.adventure.text.Component
 
-class VelocityAudienceProvider(plugin: AquaUtilsVelocity) : CommonAudienceProvider<CommandSource> {
-    private val plugin: AquaUtilsVelocity
-    private val consoleServerAudience: VelocityAudience
-
-    init {
-        this.plugin = plugin
-        consoleServerAudience = VelocityAudience(
-            plugin.getServer().consoleCommandSource,
-            plugin.getServer().consoleCommandSource
-        )
-    }
+class VelocityAudienceProvider(private val proxyServer: ProxyServer) : CommonAudienceProvider<CommandSource> {
+    private val consoleServerAudience = VelocityAudience(
+        proxyServer.consoleCommandSource,
+        proxyServer.consoleCommandSource
+    )
 
     override fun getConsoleServerAudience(): VelocityAudience {
         return consoleServerAudience
     }
 
-    override operator fun get(source: CommandSource): VelocityAudience {
+    override fun getAllPlayersAudience(source: CommandSource): VelocityAudience {
+        return VelocityAudience(proxyServer, source)
+    }
+
+    override fun get(source: CommandSource): VelocityAudience {
         return VelocityAudience(source, source)
     }
 
-    override fun broadcast(component: Component, permission: String) {
-        for (player in plugin.getServer().allPlayers) {
+    override fun broadcast(source: CommandSource, component: Component, permission: String) {
+        for (player in proxyServer.allPlayers) {
             if (player.hasPermission(permission)) {
                 player.sendMessage(component)
             }

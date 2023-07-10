@@ -1,6 +1,7 @@
 package bluesea.aquautils.mixin;
 
-import bluesea.aquautils.AquaUtils;
+import bluesea.aquautils.FabricAudience;
+import bluesea.aquautils.common.Controller;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.LastSeenMessages;
 import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
@@ -25,7 +26,12 @@ public abstract class ServerGamePacketListenerImplMixin {
 
     @Inject(at = @At("HEAD"), method = "handleChat")
     private void onChatMessage(ServerboundChatPacket serverboundChatPacket, CallbackInfo ci) {
-        if (AquaUtils.onPlayerMessage(this.player, serverboundChatPacket.message()) && !this.player.hasPermissions(5)) {
+        boolean kick = Controller.INSTANCE.onPlayerMessage(
+            player,
+            serverboundChatPacket.message(),
+            new FabricAudience(player, player.server.createCommandSourceStack())
+        );
+        if (kick && !player.hasPermissions(5)) {
             this.disconnect(Component.nullToEmpty("已重複3次(含)以上"));
         }
     }

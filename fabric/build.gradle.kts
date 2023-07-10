@@ -1,8 +1,12 @@
 plugins {
     id("fabric-loom")
 }
+repositories {
+    maven("https://oss.sonatype.org/content/repositories/snapshots")
+}
 dependencies {
-    api(rootProject.project("common"))
+    include(implementation(rootProject.project("common"))!!)
+
     val minecraftVersion: String by project
     minecraft("com.mojang", "minecraft", minecraftVersion)
     // val yarnMappings: String by project
@@ -10,13 +14,19 @@ dependencies {
     mappings(loom.officialMojangMappings())
     val loaderVersion: String by project
     modImplementation("net.fabricmc", "fabric-loader", loaderVersion)
+
     val fabricVersion: String by project
-    // modImplementation("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
+    modRuntimeOnly("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
     modImplementation(fabricApi.module("fabric-command-api-v2", fabricVersion))
     modImplementation(fabricApi.module("fabric-networking-api-v1", fabricVersion))
+    modImplementation(fabricApi.module("fabric-rendering-v1", fabricVersion))
     val fabricKotlinVersion: String by project
     modImplementation("net.fabricmc", "fabric-language-kotlin", fabricKotlinVersion)
-    // modImplementation(include("net.kyori:adventure-platform-fabric:5.6.0")!!)
+
+    val adventurePlatformFabricVersion: String by project
+    include(modImplementation("net.kyori:adventure-platform-fabric:$adventurePlatformFabricVersion")!!)
+    val cloudVersion: String by project
+    include(modImplementation("cloud.commandframework:cloud-fabric:$cloudVersion")!!)
 }
 tasks {
     processResources {

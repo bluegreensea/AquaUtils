@@ -1,17 +1,16 @@
 package bluesea.aquautils
 
-import bluesea.aquautils.common.CommonAudienceProvider
+import bluesea.aquautils.common.CommonAudience
+import bluesea.aquautils.common.Constants
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.proxy.Player
+import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier
+import io.netty.buffer.ByteBuf
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 
-class VelocityAudience(audience: Audience, source: CommandSource) :
-    PluginAudience(audience, source),
-    CommonAudienceProvider<CommandSource> {
-    override fun isPlayer(): Boolean {
-        return source is Player
-    }
+class VelocityAudience(audience: Audience, source: CommandSource) : CommonAudience<CommandSource>(audience, source) {
+    override val isPlayer: Boolean = source is Player
 
     override fun hasPermission(permission: String): Boolean {
         return source.hasPermission(permission)
@@ -21,15 +20,11 @@ class VelocityAudience(audience: Audience, source: CommandSource) :
         source.sendMessage(component)
     }
 
-    override fun getConsoleServerAudience(): CommonAudienceProvider<CommandSource> {
-        TODO("Not yet implemented")
-    }
-
-    override fun broadcast(component: Component, permission: String) {
-        TODO("Not yet implemented")
-    }
-
-    override fun get(source: CommandSource): CommonAudienceProvider<CommandSource> {
-        TODO("Not yet implemented")
+    override fun sendPluginMessage(path: String, data: ByteBuf) {
+        val player = source as Player
+        player.sendPluginMessage(
+            MinecraftChannelIdentifier.create(Constants.MOD_ID, path),
+            data.array()
+        )
     }
 }

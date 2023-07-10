@@ -1,6 +1,7 @@
 package bluesea.aquautils
 
-import bluesea.aquautils.common.LegacyController
+import bluesea.aquautils.common.Constants
+import bluesea.aquautils.common.Controller
 import com.james090500.VelocityGUI.VelocityGUI
 import com.james090500.VelocityGUI.helpers.InventoryLauncher
 import com.velocitypowered.api.event.Subscribe
@@ -13,49 +14,60 @@ import java.util.concurrent.TimeUnit
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 
-class PluginListener {
-    val lobbyPlayer = HashMap<UUID, Int>()
+class PluginListener(private val plugin: AquaUtilsVelocity) {
+    private val lobbyPlayer = HashMap<UUID, Int>()
     private val scheduledTasks = HashMap<UUID, ScheduledTask>()
 
     @Subscribe
     fun onPlayerChat(event: PlayerChatEvent) {
         val player = Audience.audience(event.player)
-        if (LegacyController.onPlayerMessage(player, event.message)) {
-            if (!event.player.hasPermission("aquautils.kick.bypass")) {
+        val kick = Controller.onPlayerMessage(
+            player,
+            event.message,
+            VelocityAudience(plugin.proxyServer, plugin.proxyServer.consoleCommandSource)
+        )
+        if (kick) {
+            if (!event.player.hasPermission("${Constants.MOD_ID}.kick.bypass")) {
                 event.player.disconnect(Component.text("已重複3次(含)以上"))
             }
         }
     }
 
+    @Suppress("UnstableApiUsage")
     @Subscribe
-    fun onPlayerJoin(event: ServerPostConnectEvent) {
-        val plugin = AquaUtilsVelocity.getInstance()
-        val player = event.player
-        if (player.currentServer.get().serverInfo.name == "lobby") {
-            lobbyPlayer[player.uniqueId] = 1
-            scheduledTasks[player.uniqueId] = plugin.getServer().scheduler
-                .buildTask(plugin) { it: ScheduledTask ->
-                    if (player.currentServer.get().serverInfo.name == "lobby") {
-                        InventoryLauncher(VelocityGUI.instance).execute("servers", player)
-                        lobbyPlayer[player.uniqueId] = lobbyPlayer[player.uniqueId]!! + 1
-                        if (lobbyPlayer[player.uniqueId]!! > 2) {
+    fun onPlayerServerConnect(event: ServerPostConnectEvent) {
+        if (plugin.velocityGUI != null && plugin.velocityGUI is VelocityGUI) {
+            val player = event.player
+            if (player.currentServer.get().serverInfo.name == "minigame") {
+                lobbyPlayer[player.uniqueId] = 1
+                scheduledTasks[player.uniqueId] = plugin.proxyServer.scheduler
+                    .buildTask(plugin) { it: ScheduledTask ->
+                        if (player.currentServer.get().serverInfo.name == "minigame") {
+                            try {
+                                InventoryLauncher(plugin.velocityGUI).execute("servers", player)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                            lobbyPlayer[player.uniqueId] = lobbyPlayer[player.uniqueId]!! + 1
+                            if (lobbyPlayer[player.uniqueId]!! > 2) {
+                                scheduledTasks.remove(player.uniqueId)
+                                it.cancel()
+                            }
+                        } else {
                             scheduledTasks.remove(player.uniqueId)
                             it.cancel()
                         }
-                    } else {
-                        scheduledTasks.remove(player.uniqueId)
-                        it.cancel()
                     }
-                }
-                .repeat(3L, TimeUnit.SECONDS)
-                .schedule()
-        } else {
-            lobbyPlayer.remove(player.uniqueId)
+                    .repeat(3L, TimeUnit.SECONDS)
+                    .schedule()
+            } else {
+                lobbyPlayer.remove(player.uniqueId)
+            }
         }
     }
 
     @Subscribe
-    fun onPlayerLeave(event: DisconnectEvent) {
+    fun onPlayerDisconnect(event: DisconnectEvent) {
         val player = event.player
         lobbyPlayer.remove(player.uniqueId)
         if (scheduledTasks[player.uniqueId] != null) {

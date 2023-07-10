@@ -1,8 +1,10 @@
+import org.gradle.configurationcache.extensions.capitalized
+
 plugins {
     val kotlinVersion: String by System.getProperties()
-    kotlin("jvm").version(kotlinVersion)
+    kotlin("jvm") version kotlinVersion
     checkstyle
-    id("net.kyori.blossom").version("1.3.1")
+    id("net.kyori.blossom") version "1.3.1"
 }
 val ktlint: Configuration by configurations.creating
 allprojects {
@@ -28,8 +30,7 @@ subprojects {
         maxWarnings = 0
     }
     base {
-        val archivesBaseName: String by project
-        archivesName.set("$archivesBaseName-${project.name}")
+        archivesName.set("${rootProject.name}-${project.name.capitalized()}")
     }
     val modVersion: String by project
     version = modVersion

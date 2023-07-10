@@ -1,6 +1,6 @@
 package bluesea.aquautils.fetcher
 
-import bluesea.aquautils.common.LegacyController
+import bluesea.aquautils.common.Controller
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import java.awt.Color
@@ -19,7 +19,6 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
     companion object {
         private const val LIVE_CHAT_API_URI_FORMAT = "https://www.youtube.com/live_chat?is_popout=1&v=%s"
         private const val GET_LIVE_CHAT_API_URI_FORMAT = "https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=%s&prettyPrint=false"
-        private const val PAID_TEXT_REGEX_PATTERN = """([^0-9]*)([0-9,.]+)"""
 
         private val gson = GsonBuilder().disableHtmlEscaping().create()
 
@@ -79,7 +78,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
                 .groupValues[1]
             val ytInitialDataJsonObject = gson.fromJson(ytInitialDataJsonContent, JsonElement::class.java)
 
-            val continuation = (
+            var continuation = (
                 ytInitialDataJsonObject.asJsonObject
                     ["contents"].asJsonObject
                     ["liveChatRenderer"].asJsonObject
@@ -120,7 +119,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
                 )
             )
 
-            LegacyController.LOGGER.info("Preset done!")
+            Controller.LOGGER.info("Preset done!")
             initialComments.forEach { comment ->
                 allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
             }
@@ -137,34 +136,50 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
 
                     val contentText = result.text()
                     val contentJsonObject = gson.fromJson(contentText, JsonElement::class.java).asJsonObject
-                    requestData.Continuation = (
-                        contentJsonObject
-                            ["continuationContents"].asJsonObject
-                            ["liveChatContinuation"].asJsonObject
-                            ["continuations"].asJsonArray[0].asJsonObject
-                            ["invalidationContinuationData"].asJsonObject
-                            ["continuation"].asString
-                        )
+                    try {
+                        continuation = (
+                            contentJsonObject
+                                ["continuationContents"].asJsonObject
+                                ["liveChatContinuation"].asJsonObject
+                                ["continuations"].asJsonArray[0].asJsonObject
+                                ["invalidationContinuationData"].asJsonObject
+                                ["continuation"].asString
+                            )
+                        requestData.Continuation = continuation
 
-                    val itemsObject = (
-                        contentJsonObject
-                            ["continuationContents"].asJsonObject
-                            ["liveChatContinuation"].asJsonObject
-                        ["actions"]
-                        )
-                    if (itemsObject != null) {
-                        val items = itemsObject.asJsonArray
-                            .filter { it.asJsonObject.has("addChatItemAction") }
-                            .map { it.asJsonObject["addChatItemAction"].asJsonObject["item"] }
-                        val comments = _ConvertToComments(existedUserIds, items)
-                        Comments = Comments.plus(comments)
+                        val itemsObject = (
+                            contentJsonObject
+                                ["continuationContents"].asJsonObject
+                                ["liveChatContinuation"].asJsonObject
+                            ["actions"]
+                            )
+                        if (itemsObject != null) {
+                            val items = itemsObject.asJsonArray
+                                .filter { it.asJsonObject.has("addChatItemAction") }
+                                .map { it.asJsonObject["addChatItemAction"].asJsonObject["item"] }
+                            val comments = _ConvertToComments(existedUserIds, items)
+                            Comments = Comments.plus(comments)
 
-                        comments.forEach { comment ->
-                            allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
+                            comments.forEach { comment ->
+                                allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
+                            }
+                        }
+                    } catch (e: NullPointerException) {
+                        e.printStackTrace()
+                        Controller.LOGGER.error("result: $contentText")
+                        try {
+                            val errorCode = (
+                                contentJsonObject
+                                    ["error"].asJsonObject
+                                    ["code"].asInt
+                                )
+                            if (errorCode != 500 && errorCode != 503) {
+                                break
+                            }
+                        } catch (_: NullPointerException) {
+                            break
                         }
                     }
-                } catch (_: NullPointerException) {
-                    break
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
