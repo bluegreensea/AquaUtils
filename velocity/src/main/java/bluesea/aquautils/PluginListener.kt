@@ -42,18 +42,20 @@ class PluginListener(private val plugin: AquaUtilsVelocity) {
                 lobbyPlayer[player.uniqueId] = 1
                 scheduledTasks[player.uniqueId] = plugin.proxyServer.scheduler
                     .buildTask(plugin) { it: ScheduledTask ->
-                        if (player.currentServer.get().serverInfo.name == "minigame") {
-                            try {
+                        try {
+                            if (player.currentServer.isPresent && player.currentServer.get().serverInfo.name == "minigame") {
                                 InventoryLauncher(plugin.velocityGUI).execute("servers", player)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                            lobbyPlayer[player.uniqueId] = lobbyPlayer[player.uniqueId]!! + 1
-                            if (lobbyPlayer[player.uniqueId]!! > 2) {
+                                lobbyPlayer[player.uniqueId] = lobbyPlayer[player.uniqueId]!! + 1
+                                if (lobbyPlayer[player.uniqueId]!! > 2) {
+                                    scheduledTasks.remove(player.uniqueId)
+                                    it.cancel()
+                                }
+                            } else {
                                 scheduledTasks.remove(player.uniqueId)
                                 it.cancel()
                             }
-                        } else {
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                             scheduledTasks.remove(player.uniqueId)
                             it.cancel()
                         }

@@ -5,7 +5,6 @@ import bluesea.aquautils.common.Controller
 import cloud.commandframework.execution.AsynchronousCommandExecutionCoordinator
 import cloud.commandframework.velocity.VelocityCommandManager
 import com.google.inject.Inject
-import com.google.inject.name.Named
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
@@ -32,18 +31,14 @@ import org.slf4j.Logger
         Dependency(id = "protocolize", optional = true)
     ]
 )
-class AquaUtilsVelocity @Inject constructor(server: ProxyServer, logger: Logger, @DataDirectory dataDirectory: Path) {
-    private val instance = this
+class AquaUtilsVelocity @Inject constructor(server: ProxyServer, pluginContainer: PluginContainer, logger: Logger, @DataDirectory dataDirectory: Path) {
     val proxyServer: ProxyServer
     private val logger: Logger
     private val dataDirectory: Path
-    // private val config: FileConfig
-
-    @Inject
-    @Named(Constants.MOD_ID)
-    lateinit var pluginContainer: PluginContainer
-
+    private val pluginContainer: PluginContainer
     private var pluginListener: PluginListener
+
+    // private val config: FileConfig
 
     val velocityGUI: Any?
     val limboFactory: Any?
@@ -52,6 +47,7 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, logger: Logger,
 
     init {
         this.proxyServer = server
+        this.pluginContainer = pluginContainer
         this.logger = logger
         this.dataDirectory = dataDirectory
 
@@ -78,7 +74,7 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, logger: Logger,
 
         if (limboFactory != null && limboFactory is LimboFactory) {
             limbo = LimboServer(this)
-            proxyServer.eventManager.register(instance, limbo)
+            proxyServer.eventManager.register(this, limbo)
             limbo.world = limboFactory.createVirtualWorld(
                 Dimension.valueOf("OVERWORLD"),
                 0.0,
@@ -101,13 +97,9 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, logger: Logger,
 
         Controller.register(veloctyCommandManager, audienceProvider)
 
-        val commandManager = proxyServer.commandManager
+        PluginCommand.register(veloctyCommandManager, proxyServer)
 
-        commandManager.register(PluginCommand.vkickCreateBrigadierCommand(proxyServer))
-        commandManager.register(PluginCommand.vgetbrandCreateBrigadierCommand(proxyServer))
-        commandManager.register(PluginCommand.vgetvirtualhostCreateBrigadierCommand(proxyServer))
-
-        proxyServer.eventManager.register(instance, pluginListener)
+        proxyServer.eventManager.register(this, pluginListener)
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -117,9 +109,9 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, logger: Logger,
             Controller.ytChatLooper!!.interrupt()
             logger.info("YTChat 已關閉!")
         }
-        proxyServer.eventManager.unregisterListener(instance, pluginListener)
+        proxyServer.eventManager.unregisterListener(this, pluginListener)
         if (limboFactory != null && limboFactory is LimboFactory) {
-            proxyServer.eventManager.unregisterListener(instance, limbo)
+            proxyServer.eventManager.unregisterListener(this, limbo)
         }
         // config.close()
     }

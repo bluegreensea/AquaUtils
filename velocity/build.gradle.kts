@@ -33,7 +33,7 @@ dependencies {
     compileOnly("com.electronwill.night-config:toml:3.6.6")
 
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar")))) // VelocityGUI
-    compileOnly("net.elytrium.limboapi:api:1.1.13")
+    compileOnly("net.elytrium.limboapi:api:1.1.16")
     compileOnly("dev.simplix:protocolize-velocity:2.2.6")
 }
 tasks {

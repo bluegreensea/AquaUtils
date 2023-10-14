@@ -45,7 +45,7 @@ class AquaUtilsFabric : ModInitializer {
     private fun onInitializeClient() {
         ClientPlayNetworking.registerGlobalReceiver(
             ResourceLocation(Constants.MOD_ID, "test")
-        ) { client: Minecraft, _: ClientPacketListener, _: FriendlyByteBuf, _: PacketSender ->
+        ) { client: Minecraft, _: ClientPacketListener, bytebuf: FriendlyByteBuf, _: PacketSender ->
             HudRenderCallback.EVENT.register(
                 HudRenderCallback { guiGraphics: GuiGraphics, _: Float ->
                     val font = client.font

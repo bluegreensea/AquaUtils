@@ -21,10 +21,12 @@ class VelocityAudience(audience: Audience, source: CommandSource) : CommonAudien
     }
 
     override fun sendPluginMessage(path: String, data: ByteBuf) {
-        val player = source as Player
-        player.sendPluginMessage(
-            MinecraftChannelIdentifier.create(Constants.MOD_ID, path),
-            data.array()
-        )
+        if (isPlayer) {
+            val player = source as Player
+            player.sendPluginMessage(
+                MinecraftChannelIdentifier.create(Constants.MOD_ID, path),
+                data.array()
+            )
+        }
     }
 }

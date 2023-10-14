@@ -19,5 +19,5 @@ dependencies {
     compileOnly("io.netty:netty-buffer:$nettyVersion")
 }
 blossom {
-    replaceToken("\\\${version}", version, "src/main/java/bluesea/aquautils/common/Controller.kt")
+    replaceToken("\\\${version}", version, "src/main/java/bluesea/aquautils/common/Constants.kt")
 }

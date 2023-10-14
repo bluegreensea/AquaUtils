@@ -52,7 +52,7 @@ subprojects {
     tasks {
         val ktlintCheck by creating(JavaExec::class) {
             inputs.files(project.fileTree(mapOf("dir" to "src", "include" to "**/*.kt")))
-            outputs.dir("${project.buildDir}/reports/ktlint/")
+            outputs.dir("${layout.buildDirectory.get()}/reports/ktlint/")
             description = "Check Kotlin code style."
             classpath = ktlint
             mainClass.set("com.pinterest.ktlint.Main")

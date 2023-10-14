@@ -1,129 +1,121 @@
 package bluesea.aquautils
 
-import com.mojang.brigadier.Command
-import com.mojang.brigadier.arguments.StringArgumentType
-import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import com.mojang.brigadier.builder.RequiredArgumentBuilder
-import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import com.velocitypowered.api.command.BrigadierCommand
-import com.velocitypowered.api.command.CommandSource
+import bluesea.aquautils.common.Constants.MOD_ID
+import bluesea.aquautils.common.Controller
+import cloud.commandframework.arguments.standard.StringArgument
+import cloud.commandframework.context.CommandContext
+import cloud.commandframework.velocity.VelocityCommandManager
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
+import net.kyori.adventure.identity.Identity
 import net.kyori.adventure.text.Component
 
 object PluginCommand {
-    fun vkickCreateBrigadierCommand(server: ProxyServer): BrigadierCommand {
-        val commandNode = LiteralArgumentBuilder
-            .literal<CommandSource>("vkick")
-            .requires { source: CommandSource -> source.hasPermission("aquautils.vkick") }
-            .then(
-                RequiredArgumentBuilder.argument<CommandSource, String>("target", StringArgumentType.string())
-                    .suggests { ctx: CommandContext<CommandSource>, builder: SuggestionsBuilder ->
-                        if ("\"@a\"".contains(ctx.input.substring(6).lowercase())) {
-                            builder.suggest("\"@a\"")
+    fun register(manager: VelocityCommandManager<VelocityAudience>, server: ProxyServer) {
+        manager.command(
+            manager.commandBuilder("vkick")
+                .permission("$MOD_ID.vkick")
+                .argument(
+                    StringArgument.builder<VelocityAudience>("target").greedy()
+                        .withSuggestionsProvider { _, s ->
+                            Controller.suggestionsFilteredPlayer(s, server)
                         }
-                        server.allPlayers.forEach {
-                            if (it.username.lowercase().contains(ctx.input.substring(6).lowercase())) {
-                                builder.suggest(it.username)
-                            }
-                        }
-                        builder.buildFuture()
-                    }
-                    .executes { ctx: CommandContext<CommandSource> ->
-                        if (StringArgumentType.getString(ctx, "target") == "@a") {
-                            server.allPlayers.forEach {
-                                it.disconnect(Component.translatable("multiplayer.disconnect.kicked"))
-                            }
+                )
+                .argument(
+                    StringArgument.builder<VelocityAudience>("reason").greedy().asOptional()
+                )
+                .handler { ctx ->
+                    val reason = ctx.getOptional<String>("reason")
+                    val filterPlayer = getFilteredPlayer(ctx, server.allPlayers)
+                    filterPlayer.forEach { player ->
+                        if (reason.isPresent) {
+                            player.disconnect(Component.translatable("multiplayer.disconnect.kicked"))
                         } else {
-                            server.getPlayer(StringArgumentType.getString(ctx, "target")).ifPresent {
-                                it.disconnect(Component.translatable("multiplayer.disconnect.kicked"))
-                            }
+                            player.disconnect(Component.translatable(reason.get()))
                         }
-                        Command.SINGLE_SUCCESS
                     }
-                    .then(
-                        RequiredArgumentBuilder.argument<CommandSource, String>("reason", StringArgumentType.greedyString())
-                            .executes { ctx: CommandContext<CommandSource> ->
-                                if (StringArgumentType.getString(ctx, "target") == "@a") {
-                                    server.allPlayers.forEach {
-                                        it.disconnect(
-                                            Component.translatable(
-                                                StringArgumentType.getString(ctx, "reason")
-                                            )
-                                        )
-                                    }
-                                } else {
-                                    server.getPlayer(StringArgumentType.getString(ctx, "target")).ifPresent {
-                                        it.disconnect(
-                                            Component.translatable(
-                                                StringArgumentType.getString(ctx, "reason")
-                                            )
-                                        )
-                                    }
-                                }
-                                Command.SINGLE_SUCCESS
-                            }
-                    )
-            ).build()
-        return BrigadierCommand(commandNode)
-    }
+                }
+        )
 
-    fun vgetbrandCreateBrigadierCommand(server: ProxyServer): BrigadierCommand {
-        val commandNode = LiteralArgumentBuilder
-            .literal<CommandSource>("vgetbrand")
-            .requires { source: CommandSource -> source.hasPermission("aquautils.vget") }
-            .then(
-                RequiredArgumentBuilder.argument<CommandSource, String>("target", StringArgumentType.word())
-                    .suggests { ctx: CommandContext<CommandSource>, builder: SuggestionsBuilder ->
-                        server.allPlayers.forEach {
-                            if (it.username.lowercase().contains(ctx.input.substring(10).lowercase())) {
-                                builder.suggest(it.username)
-                            }
+        manager.command(
+            manager.commandBuilder("vget")
+                .permission("$MOD_ID.vget")
+                .literal("brand")
+                .argument(
+                    StringArgument.builder<VelocityAudience>("target").greedy()
+                        .withSuggestionsProvider { _, s ->
+                            Controller.suggestionsFilteredPlayer(s, server)
                         }
-                        builder.buildFuture()
-                    }
-                    .executes { ctx: CommandContext<CommandSource> ->
-                        server.getPlayer(StringArgumentType.getString(ctx, "target")).ifPresent { player: Player ->
-                            if (player.clientBrand != null) {
-                                ctx.source.sendMessage(Component.text(player.clientBrand!!))
-                            } else {
-                                ctx.source.sendMessage(Component.text("no brand"))
-                            }
+                )
+                .handler { ctx ->
+                    val filterPlayer = getFilteredPlayer(ctx, server.allPlayers)
+                    filterPlayer.forEach { player ->
+                        if (player.clientBrand != null) {
+                            ctx.sender.sendMessage(Component.text("${player.username}: ${player.clientBrand}"))
+                        } else {
+                            ctx.sender.sendMessage(Component.text("${player.username}: no brand"))
                         }
-                        Command.SINGLE_SUCCESS
                     }
-            ).build()
-        return BrigadierCommand(commandNode)
-    }
-
-    fun vgetvirtualhostCreateBrigadierCommand(server: ProxyServer): BrigadierCommand {
-        val commandNode = LiteralArgumentBuilder
-            .literal<CommandSource>("vgetvirtualhost")
-            .requires { source: CommandSource -> source.hasPermission("aquautils.vget") }
-            .then(
-                RequiredArgumentBuilder.argument<CommandSource, String>("target", StringArgumentType.word())
-                    .suggests { ctx: CommandContext<CommandSource>, builder: SuggestionsBuilder ->
-                        server.allPlayers.forEach {
-                            if (it.username.lowercase().contains(ctx.input.substring(16).lowercase())) {
-                                builder.suggest(it.username)
-                            }
+                }
+        ).command(
+            manager.commandBuilder("vget")
+                .permission("$MOD_ID.vget")
+                .literal("virtualhost")
+                .argument(
+                    StringArgument.builder<VelocityAudience>("target").greedy()
+                        .withSuggestionsProvider { _, s ->
+                            Controller.suggestionsFilteredPlayer(s, server)
                         }
-                        builder.buildFuture()
-                    }
-                    .executes { ctx: CommandContext<CommandSource> ->
-                        server.getPlayer(StringArgumentType.getString(ctx, "target")).ifPresent { player: Player ->
-                            if (player.virtualHost != null) {
-                                ctx.source.sendMessage(
-                                    Component.text("${player.virtualHost.get().hostName}:${player.virtualHost.get().port}")
+                )
+                .handler { ctx ->
+                    val filterPlayer = getFilteredPlayer(ctx, server.allPlayers)
+                    filterPlayer.forEach { player ->
+                        if (player.virtualHost.isPresent) {
+                            ctx.sender.sendMessage(
+                                Component.text(
+                                    "${player.username}: ${player.virtualHost.get().hostName}:${player.virtualHost.get().port}"
                                 )
-                            } else {
-                                ctx.source.sendMessage(Component.text("no virtualhost"))
-                            }
+                            )
+                        } else {
+                            ctx.sender.sendMessage(Component.text("${player.username}: no virtualhost"))
                         }
-                        Command.SINGLE_SUCCESS
                     }
-            ).build()
-        return BrigadierCommand(commandNode)
+                }
+        ).command(
+            manager.commandBuilder("vget")
+                .permission("$MOD_ID.vget")
+                .literal("address")
+                .argument(
+                    StringArgument.builder<VelocityAudience>("target").greedy()
+                        .withSuggestionsProvider { _, s ->
+                            Controller.suggestionsFilteredPlayer(s, server)
+                        }
+                )
+                .handler { ctx ->
+                    val filteredPlayer = getFilteredPlayer(ctx, server.allPlayers)
+                    filteredPlayer.forEach { player ->
+                        ctx.sender.sendMessage(
+                            Component.text(
+                                "${player.username}: ${player.remoteAddress}"
+                            )
+                        )
+                    }
+                }
+        )
+    }
+
+    private fun getFilteredPlayer(ctx: CommandContext<VelocityAudience>, allPlayers: Collection<Player>): Collection<Player> {
+        if (ctx.get<String>("target") == "@a") {
+            return allPlayers
+        } else if (ctx.get<String>("target") == "@s") {
+            return listOf(ctx.sender.source as Player)
+        } else {
+            return allPlayers.filter { player ->
+                if (player.get(Identity.NAME).isPresent) {
+                    return@filter player.get(Identity.NAME).get().lowercase() == ctx.get<String>("target").lowercase()
+                }
+                false
+            }
+        }
     }
 }
