@@ -1,0 +1,5 @@
+package bluesea.aquautils.common
+
+object Version {
+    const val VERSION = "{{ version }}"
+}

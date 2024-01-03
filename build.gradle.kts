@@ -4,7 +4,6 @@ plugins {
     val kotlinVersion: String by System.getProperties()
     kotlin("jvm") version kotlinVersion
     checkstyle
-    id("net.kyori.blossom") version "1.3.1"
 }
 val ktlint: Configuration by configurations.creating
 allprojects {
@@ -13,7 +12,7 @@ allprojects {
     }
 }
 dependencies {
-    ktlint("com.pinterest:ktlint:0.49.0") {
+    ktlint("com.pinterest.ktlint:ktlint-cli:1.0.1") {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
         }
@@ -22,7 +21,6 @@ dependencies {
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "checkstyle")
-    apply(plugin = "net.kyori.blossom")
     checkstyle {
         toolVersion = "10.5.0"
         configFile = rootProject.file("checkstyle.xml")
@@ -51,12 +49,11 @@ subprojects {
     }
     tasks {
         val ktlintCheck by creating(JavaExec::class) {
-            inputs.files(project.fileTree(mapOf("dir" to "src", "include" to "**/*.kt")))
-            outputs.dir("${layout.buildDirectory.get()}/reports/ktlint/")
+            group = "verification"
             description = "Check Kotlin code style."
             classpath = ktlint
             mainClass.set("com.pinterest.ktlint.Main")
-            args = listOf("src/**/*.kt", "**/*.kts")
+            args = listOf("src/**/*.kt", "**/*.kts", "!**/build/**")
         }
         val javaVersion = JavaVersion.VERSION_17
         withType<JavaCompile> {

@@ -31,12 +31,13 @@ import org.slf4j.Logger
         Dependency(id = "protocolize", optional = true)
     ]
 )
-class AquaUtilsVelocity @Inject constructor(server: ProxyServer, pluginContainer: PluginContainer, logger: Logger, @DataDirectory dataDirectory: Path) {
-    val proxyServer: ProxyServer
-    private val logger: Logger
-    private val dataDirectory: Path
-    private val pluginContainer: PluginContainer
-    private var pluginListener: PluginListener
+class AquaUtilsVelocity @Inject constructor(
+    val proxyServer: ProxyServer,
+    private val pluginContainer: PluginContainer,
+    private val logger: Logger,
+    @DataDirectory private val dataDirectory: Path
+) {
+    private var pluginListener = PluginListener(this)
 
     // private val config: FileConfig
 
@@ -46,11 +47,6 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, pluginContainer
     lateinit var limbo: LimboServer
 
     init {
-        this.proxyServer = server
-        this.pluginContainer = pluginContainer
-        this.logger = logger
-        this.dataDirectory = dataDirectory
-
         // if (!dataDirectory.exists()) {
         //     dataDirectory.createDirectory()
         // }
@@ -59,8 +55,6 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, pluginContainer
         //     configFile.createNewFile()
         // }
         // config = FileConfig.of(configFile)
-
-        pluginListener = PluginListener(this)
 
         velocityGUI = proxyServer.pluginManager.getPlugin("velocitygui").flatMap(PluginContainer::getInstance).getOrNull()
         limboFactory = proxyServer.pluginManager.getPlugin("limboapi").flatMap(PluginContainer::getInstance).getOrNull()
@@ -76,7 +70,7 @@ class AquaUtilsVelocity @Inject constructor(server: ProxyServer, pluginContainer
             limbo = LimboServer(this)
             proxyServer.eventManager.register(this, limbo)
             limbo.world = limboFactory.createVirtualWorld(
-                Dimension.valueOf("OVERWORLD"),
+                Dimension.OVERWORLD,
                 0.0,
                 100.0,
                 0.0,

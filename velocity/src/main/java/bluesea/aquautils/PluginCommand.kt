@@ -7,6 +7,7 @@ import cloud.commandframework.context.CommandContext
 import cloud.commandframework.velocity.VelocityCommandManager
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
+import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.identity.Identity
 import net.kyori.adventure.text.Component
 
@@ -16,19 +17,19 @@ object PluginCommand {
             manager.commandBuilder("vkick")
                 .permission("$MOD_ID.vkick")
                 .argument(
-                    StringArgument.builder<VelocityAudience>("target").greedy()
+                    StringArgument.builder<VelocityAudience>("target").quoted()
                         .withSuggestionsProvider { _, s ->
-                            Controller.suggestionsFilteredPlayer(s, server)
+                            suggestionsFilteredPlayer(s, server)
                         }
                 )
                 .argument(
                     StringArgument.builder<VelocityAudience>("reason").greedy().asOptional()
                 )
                 .handler { ctx ->
-                    val reason = ctx.getOptional<String>("reason")
                     val filterPlayer = getFilteredPlayer(ctx, server.allPlayers)
+                    val reason = ctx.getOptional<String>("reason")
                     filterPlayer.forEach { player ->
-                        if (reason.isPresent) {
+                        if (!reason.isPresent) {
                             player.disconnect(Component.translatable("multiplayer.disconnect.kicked"))
                         } else {
                             player.disconnect(Component.translatable(reason.get()))
@@ -104,15 +105,34 @@ object PluginCommand {
         )
     }
 
+    private fun suggestionsFilteredPlayer(input: String, allPlayers: Audience): ArrayList<String> {
+        val completions = arrayListOf<String>()
+        if ("\"@a\"".contains(input.lowercase())) {
+            completions.add("\"@a\"")
+        }
+        if ("\"@s\"".contains(input.lowercase())) {
+            completions.add("\"@s\"")
+        }
+        allPlayers.forEachAudience { player: Audience ->
+            player.get(Identity.NAME).ifPresent { name: String ->
+                if (name.lowercase().contains(input.lowercase())) {
+                    completions.add(name)
+                }
+            }
+        }
+        return completions
+    }
+
     private fun getFilteredPlayer(ctx: CommandContext<VelocityAudience>, allPlayers: Collection<Player>): Collection<Player> {
-        if (ctx.get<String>("target") == "@a") {
+        val target = ctx.get<String>("target").replace("\"", "")
+        if (target == "@a") {
             return allPlayers
-        } else if (ctx.get<String>("target") == "@s") {
+        } else if (target == "@s") {
             return listOf(ctx.sender.source as Player)
         } else {
             return allPlayers.filter { player ->
                 if (player.get(Identity.NAME).isPresent) {
-                    return@filter player.get(Identity.NAME).get().lowercase() == ctx.get<String>("target").lowercase()
+                    return@filter player.get(Identity.NAME).get().lowercase() == target.lowercase()
                 }
                 false
             }

@@ -11,8 +11,11 @@ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.jsoup.Jsoup
 
 // Refer to https://github.com/YuutaTsubasa/ChatroomFetcher
-class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
+class YoutubeFetcher(allPlayers: Audience, liveId: String) {
+    @Suppress("ktlint:standard:property-naming")
     private val _liveId: String
+
+    @Suppress("ktlint:standard:property-naming")
     private val _liveChatApiUri: String
     private val allPlayers: Audience
 
@@ -22,7 +25,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
 
         private val gson = GsonBuilder().disableHtmlEscaping().create()
 
-        var Comments = emptyArray<JsonElement>()
+        var allComments = emptyArray<JsonElement>()
     }
 
     init {
@@ -99,7 +102,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
                         .map { it.asJsonObject["addChatItemAction"].asJsonObject["item"] }
                     )
             )
-            Comments.plus(initialComments)
+            allComments.plus(initialComments)
 
             val requestData = YoutubeChatRequestData.YoutubeChatRequestData(
                 Context = YoutubeChatRequestData.ContextData(
@@ -158,7 +161,7 @@ class YoutubeFetcher constructor(allPlayers: Audience, liveId: String) {
                                 .filter { it.asJsonObject.has("addChatItemAction") }
                                 .map { it.asJsonObject["addChatItemAction"].asJsonObject["item"] }
                             val comments = _ConvertToComments(existedUserIds, items)
-                            Comments = Comments.plus(comments)
+                            allComments = allComments.plus(comments)
 
                             comments.forEach { comment ->
                                 allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))

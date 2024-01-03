@@ -281,6 +281,7 @@ ij_java_wrap_long_lines = false
 
 # Custom
 [*.{gradle.kts,kt,kts}]
+ktlint_code_style = intellij_idea
 ij_kotlin_allow_trailing_comma = false
 ij_kotlin_allow_trailing_comma_on_call_site = false
 ij_kotlin_block_comment_add_space = true

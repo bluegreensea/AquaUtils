@@ -1,3 +1,7 @@
+plugins {
+    id("net.kyori.blossom") version "2.1.0"
+    id("org.jetbrains.gradle.plugin.idea-ext") version "1.1.7"
+}
 repositories {
     maven("https://repo.papermc.io/repository/maven-public/") {
         name = "papermc-repo"
@@ -18,6 +22,12 @@ dependencies {
     val nettyVersion: String by project
     compileOnly("io.netty:netty-buffer:$nettyVersion")
 }
-blossom {
-    replaceToken("\\\${version}", version, "src/main/java/bluesea/aquautils/common/Constants.kt")
+sourceSets {
+    main {
+        blossom {
+            kotlinSources {
+                property("version", version.toString())
+            }
+        }
+    }
 }
