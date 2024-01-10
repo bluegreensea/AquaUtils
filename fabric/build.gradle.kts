@@ -2,6 +2,7 @@ plugins {
     id("fabric-loom")
 }
 repositories {
+    mavenLocal() // cloud v2
     maven("https://oss.sonatype.org/content/repositories/snapshots")
 }
 dependencies {

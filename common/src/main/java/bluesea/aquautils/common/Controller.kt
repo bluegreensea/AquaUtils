@@ -3,8 +3,10 @@ package bluesea.aquautils.common
 import bluesea.aquautils.common.Constants.MOD_ID
 import bluesea.aquautils.fetcher.YoutubeFetcher
 import cloud.commandframework.CommandManager
-import cloud.commandframework.arguments.standard.BooleanArgument
-import cloud.commandframework.arguments.standard.StringArgument
+import cloud.commandframework.arguments.standard.BooleanParser
+import cloud.commandframework.arguments.standard.StringParser
+import cloud.commandframework.arguments.suggestion.Suggestion
+import cloud.commandframework.arguments.suggestion.SuggestionProvider
 import cloud.commandframework.context.CommandContext
 import java.util.UUID
 import net.kyori.adventure.audience.Audience
@@ -45,8 +47,8 @@ object Controller {
         ).command(
             manager.commandBuilder(MOD_ID)
                 .permission("$MOD_ID.command")
-                .argument(StringArgument.of("command"))
-                .argument(BooleanArgument.optional("switch"))
+                .required("command", StringParser.stringParser())
+                .optional("switch", BooleanParser.booleanParser())
                 .handler {
                     aquautils(it)
                 }
@@ -55,48 +57,48 @@ object Controller {
         manager.command(
             manager.commandBuilder("votereset")
                 .permission("$MOD_ID.votereset")
-                .argument(
-                    StringArgument.builder<C>("options").greedy().asOptional()
-                        .withSuggestionsProvider { _, s ->
-                            val suggestions = arrayListOf("")
-                            if (!s.contains(SILENT_OPTION_STRING)) {
-                                suggestions.add(SILENT_OPTION_STRING)
-                            }
-                            suggestions
-                        }
-                )
+                .optional("options", StringParser.greedyStringParser()) { c, s ->
+                    val suggestions = arrayListOf<Suggestion>()
+                    if (!s.peekString().contains(SILENT_OPTION_STRING)) {
+                        suggestions.add(Suggestion.simple(SILENT_OPTION_STRING))
+                    }
+                    SuggestionProvider
+                        .suggesting<C>(suggestions)
+                        .suggestionsFuture(c, s)
+                }
                 .handler {
-                    votereset(it, provider.getConsoleServerAudience(), provider.getAllPlayersAudience(it.sender.source))
+                    votereset(it, provider.getConsoleServerAudience(), provider.getAllPlayersAudience(it.sender().source))
                 }
         )
 
         manager.command(
             manager.commandBuilder("voteget")
-                .argument(
-                    StringArgument.builder<C>("target").greedy().asOptional()
-                        .withSuggestionsProvider { c, s ->
-                            val suggestions = suggestionsFilteredPlayer(s, provider.getAllPlayersAudience(c.sender.source))
-                            // TODO: suggestion available vote options
-                            suggestions
-                        }
-                )
+                .optional("target", StringParser.greedyStringParser()) { c, s ->
+                    // TODO: suggestion available vote options
+                    SuggestionProvider
+                        .suggesting<C>(
+                            suggestionsFilteredPlayer(s.peekString(), provider.getAllPlayersAudience(c.sender().source))
+                        )
+                        .suggestionsFuture(c, s)
+                }
                 .handler {
-                    voteget(it, provider.getAllPlayersAudience(it.sender.source))
+                    voteget(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         )
 
         manager.command(
             manager.commandBuilder("voteset")
                 .permission("$MOD_ID.voteset")
-                .argument(StringArgument.of("value"))
-                .argument(
-                    StringArgument.builder<C>("target").greedy().asOptional()
-                        .withSuggestionsProvider { c, s ->
-                            suggestionsFilteredPlayer(s, provider.getAllPlayersAudience(c.sender.source))
-                        }
-                )
+                .required("value", StringParser.stringParser())
+                .optional("target", StringParser.greedyStringParser()) { c, s ->
+                    SuggestionProvider
+                        .suggesting<C>(
+                            suggestionsFilteredPlayer(s.peekString(), provider.getAllPlayersAudience(c.sender().source))
+                        )
+                        .suggestionsFuture(c, s)
+                }
                 .handler {
-                    voteset(it, provider.getAllPlayersAudience(it.sender.source))
+                    voteset(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         )
 
@@ -104,47 +106,47 @@ object Controller {
             manager.commandBuilder("vytchat")
                 .permission("$MOD_ID.vytchat")
                 .literal("start")
-                .argument(StringArgument.greedy("videoid"))
+                .required("videoid", StringParser.greedyStringParser())
                 .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender.source))
+                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         ).command(
             manager.commandBuilder("vytchat")
                 .permission("$MOD_ID.vytchat")
                 .literal("stop")
                 .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender.source))
+                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         ).command(
             manager.commandBuilder("vytchat")
                 .literal("url")
                 .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender.source))
+                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         ).command(
             manager.commandBuilder("vytchat")
                 .permission("$MOD_ID.vytchat")
                 .literal("urlall")
                 .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender.source))
+                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         )
     }
 
     private fun <C : CommonAudience<S>, S> aquautils(ctx: CommandContext<C>) {
-        val command = ctx.getOptional<String>("command")
-        val switch = ctx.getOptional<Boolean>("switch")
+        val command = ctx.optional<String>("command")
+        val switch = ctx.optional<Boolean>("switch")
 
         if (command.isEmpty) {
-            ctx.sender.sendMessage(Component.text("version: ${Constants.MOD_VERSION}"))
+            ctx.sender().sendMessage(Component.text("version: ${Constants.MOD_VERSION}"))
         } else if (ctx.hasPermission("$MOD_ID.command")) {
             if (switch.isEmpty) {
-                ctx.sender.sendMessage(
+                ctx.sender().sendMessage(
                     Component.text("Aqua Utils kick: $kick")
                 )
             } else {
                 kick = switch.get()
-                ctx.sender.sendMessage(
+                ctx.sender().sendMessage(
                     Component.text("Aqua Utils set kick: $kick")
                 )
                 LOGGER.info("set kick: $kick")
@@ -153,7 +155,7 @@ object Controller {
     }
 
     private fun <C : CommonAudience<*>> votereset(ctx: CommandContext<C>, console: CommonAudience<*>, allPlayers: CommonAudience<*>) {
-        val options = ctx.getOptional<String>("options")
+        val options = ctx.optional<String>("options")
 
         val players = allPlayers.audience
         if (options.isEmpty || options.get() == SILENT_OPTION_STRING) {
@@ -165,7 +167,7 @@ object Controller {
                     players.sendMessage(voteTextComponent.build())
                 }
             } else {
-                ctx.sender.sendMessage(
+                ctx.sender().sendMessage(
                     Component.text("需要至少重置一次")
                 )
             }
@@ -193,11 +195,11 @@ object Controller {
             voteCounting(allPlayers)
             voteReset = true
             voteTextComponent = Component.text()
-            if (ctx.sender.audience.get(Identity.DISPLAY_NAME).isPresent) {
+            if (ctx.sender().audience.get(Identity.DISPLAY_NAME).isPresent) {
                 voteTextComponent.append(
                     Component.translatable(
                         "chat.type.text",
-                        ctx.sender.audience.get(Identity.DISPLAY_NAME).get(),
+                        ctx.sender().audience.get(Identity.DISPLAY_NAME).get(),
                         textComponent.build()
                     )
                 )
@@ -207,7 +209,7 @@ object Controller {
             if (!silent) {
                 players.sendMessage(voteTextComponent.build())
                 console.sendMessage(
-                    ctx.sender.audience.get(Identity.DISPLAY_NAME).get()
+                    ctx.sender().audience.get(Identity.DISPLAY_NAME).get()
                         .append(Component.text(": "))
                         .append(textComponent.build())
                 )
@@ -265,10 +267,10 @@ object Controller {
     }
 
     private fun <C : CommonAudience<S>, S> voteget(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        val target = ctx.getOptional<String>("target")
+        val target = ctx.optional<String>("target")
 
         if (target.isEmpty) {
-            ctx.sender.sendMessage(
+            ctx.sender().sendMessage(
                 Component.text("投票結果: ")
                     .append(voteData.winnerOption.build())
                     .append(voteData.result.build())
@@ -313,30 +315,31 @@ object Controller {
                     }
                 }
             }
-            ctx.sender.sendMessage(
+            ctx.sender().sendMessage(
                 if (result.build().children().isNotEmpty()) result.build() else Component.text("無任何投票紀錄")
             )
         }
     }
 
     private fun <C : CommonAudience<S>, S> voteset(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        val target = ctx.getOptional<String>("target")
+        val target = ctx.optional<String>("target")
         var value = ctx.get<String>("value")
         if (value[0] != '+') value = "+$value"
 
         if (target.isEmpty) {
-            onPlayerVote(ctx.sender.audience, ctx.sender.audience, value, allPlayers)
+            onPlayerVote(ctx.sender().audience, ctx.sender().audience, value, allPlayers)
         } else {
             val filteredPlayer = getFilteredPlayer(ctx, allPlayers)
             filteredPlayer.forEachAudience { player: Audience ->
-                onPlayerVote(ctx.sender.audience, player, value, allPlayers)
+                onPlayerVote(ctx.sender().audience, player, value, allPlayers)
             }
         }
     }
 
     private fun <C : CommonAudience<S>, S> vytchat(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        val command = ctx.rawInput[1]
-        val videoid = ctx.getOptional<String>("videoid")
+        // val command = ctx.rawInput[1]
+        val command = ctx.rawInput().input().split(" ")[1]
+        val videoid = ctx.optional<String>("videoid")
 
         val ytChatPrefix = Component.text("[YTChat] ").color(NamedTextColor.RED)
         when (command) {
@@ -356,7 +359,7 @@ object Controller {
                     )
                     LOGGER.info("YTChat 啟動成功!")
                 } else {
-                    ctx.sender.sendMessage(
+                    ctx.sender().sendMessage(
                         ytChatPrefix.append(Component.text("啟動失敗－已經啟動!"))
                     )
                 }
@@ -366,7 +369,7 @@ object Controller {
                     ytChatLooper!!.interrupt()
                     LOGGER.info("YTChat 已關閉!")
                 } else {
-                    ctx.sender.sendMessage(
+                    ctx.sender().sendMessage(
                         ytChatPrefix.append(Component.text("尚未啟動!"))
                     )
                 }
@@ -378,12 +381,12 @@ object Controller {
                         .append(Component.text("直播網址: "))
                         .append(Component.text(url).clickEvent(ClickEvent.openUrl(url)))
                     if (!command.contains("all")) {
-                        ctx.sender.sendMessage(urlMessage)
+                        ctx.sender().sendMessage(urlMessage)
                     } else {
                         allPlayers.sendMessage(urlMessage)
                     }
                 } else {
-                    ctx.sender.sendMessage(
+                    ctx.sender().sendMessage(
                         ytChatPrefix.append(Component.text("尚未啟動!"))
                     )
                 }
@@ -391,39 +394,39 @@ object Controller {
         }
     }
 
-    fun suggestionsFilteredPlayer(input: String, allPlayers: Audience): ArrayList<String> {
-        val completions = arrayListOf<String>()
+    fun suggestionsFilteredPlayer(input: String, allPlayers: Audience): ArrayList<Suggestion> {
+        val completions = arrayListOf<Suggestion>()
         if ("@a".contains(input.lowercase())) {
-            completions.add("@a")
+            completions.add(Suggestion.simple("@a"))
         }
         if ("@s".contains(input.lowercase())) {
-            completions.add("@s")
+            completions.add(Suggestion.simple("@s"))
         }
         allPlayers.forEachAudience { player: Audience ->
             player.get(Identity.NAME).ifPresent { name: String ->
                 if (name.lowercase().contains(input.lowercase())) {
-                    completions.add(name)
+                    completions.add(Suggestion.simple(name))
                 }
             }
         }
         return completions
     }
 
-    private fun suggestionsFilteredPlayer(input: String, allPlayers: CommonAudience<*>): ArrayList<String> {
+    private fun suggestionsFilteredPlayer(input: String, allPlayers: CommonAudience<*>): ArrayList<Suggestion> {
         return suggestionsFilteredPlayer(input, allPlayers.audience)
     }
 
     private fun <C : CommonAudience<S>, S> getFilteredPlayer(ctx: CommandContext<C>, allPlayers: CommonAudience<S>): Audience {
-        if (ctx.get<String>("target") == "@a") {
-            return allPlayers.audience
-        } else if (ctx.get<String>("target") == "@s") {
-            return ctx.sender.audience
-        } else {
-            return allPlayers.audience.filterAudience { player ->
-                if (player.get(Identity.NAME).isPresent) {
-                    return@filterAudience player.get(Identity.NAME).get().lowercase() == ctx.get<String>("target").lowercase()
+        when (val target = ctx.get<String>("target")) {
+            "@a" -> return allPlayers.audience
+            "@s" -> return ctx.sender().audience
+            else -> {
+                return allPlayers.audience.filterAudience { player ->
+                    if (player.get(Identity.NAME).isPresent) {
+                        return@filterAudience player.get(Identity.NAME).get().lowercase() == target.lowercase()
+                    }
+                    false
                 }
-                false
             }
         }
     }

@@ -2,7 +2,8 @@ package bluesea.aquautils
 
 import bluesea.aquautils.common.Constants
 import bluesea.aquautils.common.Controller
-import cloud.commandframework.execution.AsynchronousCommandExecutionCoordinator
+import cloud.commandframework.SenderMapper
+import cloud.commandframework.execution.ExecutionCoordinator
 import cloud.commandframework.velocity.VelocityCommandManager
 import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
@@ -37,12 +38,12 @@ class AquaUtilsVelocity @Inject constructor(
     private val logger: Logger,
     @DataDirectory private val dataDirectory: Path
 ) {
-    private var pluginListener = PluginListener(this)
+    private val pluginListener = PluginListener(this)
 
     // private val config: FileConfig
 
-    val velocityGUI: Any?
-    val limboFactory: Any?
+    val velocityGUI = proxyServer.pluginManager.getPlugin("velocitygui").flatMap(PluginContainer::getInstance).getOrNull()
+    val limboFactory = proxyServer.pluginManager.getPlugin("limboapi").flatMap(PluginContainer::getInstance).getOrNull()
 
     lateinit var limbo: LimboServer
 
@@ -55,9 +56,6 @@ class AquaUtilsVelocity @Inject constructor(
         //     configFile.createNewFile()
         // }
         // config = FileConfig.of(configFile)
-
-        velocityGUI = proxyServer.pluginManager.getPlugin("velocitygui").flatMap(PluginContainer::getInstance).getOrNull()
-        limboFactory = proxyServer.pluginManager.getPlugin("limboapi").flatMap(PluginContainer::getInstance).getOrNull()
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -81,17 +79,16 @@ class AquaUtilsVelocity @Inject constructor(
         }
 
         val audienceProvider = VelocityAudienceProvider(proxyServer)
-        val veloctyCommandManager = VelocityCommandManager(
+        val velocityCommandManager = VelocityCommandManager(
             pluginContainer,
             proxyServer,
-            AsynchronousCommandExecutionCoordinator.builder<VelocityAudience>().build(),
-            audienceProvider::get,
-            VelocityAudience::source
+            ExecutionCoordinator.builder<VelocityAudience>().synchronizeExecution().build(),
+            SenderMapper.create(audienceProvider::get, VelocityAudience::source)
         )
 
-        Controller.register(veloctyCommandManager, audienceProvider)
+        Controller.register(velocityCommandManager, audienceProvider)
 
-        PluginCommand.register(veloctyCommandManager, proxyServer)
+        PluginCommand.register(velocityCommandManager, proxyServer)
 
         proxyServer.eventManager.register(this, pluginListener)
     }

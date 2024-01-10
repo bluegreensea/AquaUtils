@@ -2,7 +2,8 @@ package bluesea.aquautils
 
 import bluesea.aquautils.common.Constants
 import bluesea.aquautils.common.Controller
-import cloud.commandframework.execution.AsynchronousCommandExecutionCoordinator
+import cloud.commandframework.SenderMapper
+import cloud.commandframework.execution.ExecutionCoordinator
 import cloud.commandframework.fabric.FabricServerCommandManager
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
@@ -34,9 +35,8 @@ class AquaUtilsFabric : ModInitializer {
 
         val audienceProvider = FabricAudienceProvider()
         val fabricCommandManager = FabricServerCommandManager(
-            AsynchronousCommandExecutionCoordinator.builder<FabricAudience>().build(),
-            audienceProvider::get,
-            FabricAudience::source
+            ExecutionCoordinator.builder<FabricAudience>().synchronizeExecution().build(),
+            SenderMapper.create(audienceProvider::get, FabricAudience::source)
         )
 
         Controller.register(fabricCommandManager, audienceProvider)

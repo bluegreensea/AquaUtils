@@ -5,6 +5,7 @@ plugins {
 }
 val velocityVersion: String by project
 repositories {
+    mavenLocal() // cloud v2
     maven("https://repo.papermc.io/repository/maven-public/") {
         name = "papermc-repo"
     }
@@ -48,6 +49,10 @@ tasks {
     shadowJar {
         archiveClassifier.set("with-dependencies")
         archiveVersion.set("")
+        val dependencyDir = "${project.group}.dependencies"
+        relocate("cloud.commandframework", "$dependencyDir.cloud")
+        relocate("io.leangen.geantyref", "$dependencyDir.typetoken")
+        relocate("org.jsoup", "$dependencyDir.jsoup")
     }
 }
 artifacts {

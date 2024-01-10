@@ -35,6 +35,7 @@ subprojects {
     val mavenGroup: String by project
     group = mavenGroup
     repositories {
+        mavenLocal() // cloud v2
         maven("https://libraries.minecraft.net")
     }
     dependencies {
