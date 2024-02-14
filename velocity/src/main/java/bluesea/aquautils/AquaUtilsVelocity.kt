@@ -2,9 +2,6 @@ package bluesea.aquautils
 
 import bluesea.aquautils.common.Constants
 import bluesea.aquautils.common.Controller
-import cloud.commandframework.SenderMapper
-import cloud.commandframework.execution.ExecutionCoordinator
-import cloud.commandframework.velocity.VelocityCommandManager
 import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
@@ -18,6 +15,9 @@ import java.nio.file.Path
 import kotlin.jvm.optionals.getOrNull
 import net.elytrium.limboapi.api.LimboFactory
 import net.elytrium.limboapi.api.chunk.Dimension
+import org.incendo.cloud.SenderMapper
+import org.incendo.cloud.execution.ExecutionCoordinator
+import org.incendo.cloud.velocity.VelocityCommandManager
 import org.slf4j.Logger
 
 @Plugin(

@@ -2,9 +2,6 @@ package bluesea.aquautils
 
 import bluesea.aquautils.common.Constants
 import bluesea.aquautils.common.Controller
-import cloud.commandframework.SenderMapper
-import cloud.commandframework.execution.ExecutionCoordinator
-import cloud.commandframework.fabric.FabricServerCommandManager
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
@@ -16,6 +13,9 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.resources.ResourceLocation
+import org.incendo.cloud.SenderMapper
+import org.incendo.cloud.execution.ExecutionCoordinator
+import org.incendo.cloud.fabric.FabricServerCommandManager
 
 class AquaUtilsFabric : ModInitializer {
     override fun onInitialize() {

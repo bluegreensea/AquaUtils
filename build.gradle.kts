@@ -12,7 +12,7 @@ allprojects {
     }
 }
 dependencies {
-    ktlint("com.pinterest.ktlint:ktlint-cli:1.0.1") {
+    ktlint("com.pinterest.ktlint:ktlint-cli:1.1.1") {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
         }
@@ -22,7 +22,7 @@ subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "checkstyle")
     checkstyle {
-        toolVersion = "10.5.0"
+        toolVersion = "10.13.0"
         configFile = rootProject.file("checkstyle.xml")
         maxErrors = 0
         maxWarnings = 0
@@ -35,7 +35,6 @@ subprojects {
     val mavenGroup: String by project
     group = mavenGroup
     repositories {
-        mavenLocal() // cloud v2
         maven("https://libraries.minecraft.net")
     }
     dependencies {
@@ -45,8 +44,8 @@ subprojects {
 
         compileOnly("com.mojang:brigadier:1.0.18")
         val cloudVersion: String by project
-        implementation("cloud.commandframework:cloud-core:$cloudVersion")
-        implementation("cloud.commandframework:cloud-brigadier:$cloudVersion")
+        implementation("org.incendo:cloud-core:$cloudVersion")
+        implementation("org.incendo:cloud-brigadier:$cloudVersion")
     }
     tasks {
         val ktlintCheck by creating(JavaExec::class) {

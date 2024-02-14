@@ -2,7 +2,6 @@ plugins {
     id("fabric-loom")
 }
 repositories {
-    mavenLocal() // cloud v2
     maven("https://oss.sonatype.org/content/repositories/snapshots")
 }
 dependencies {
@@ -27,7 +26,7 @@ dependencies {
     val adventurePlatformFabricVersion: String by project
     include(modImplementation("net.kyori:adventure-platform-fabric:$adventurePlatformFabricVersion")!!)
     val cloudVersion: String by project
-    include(modImplementation("cloud.commandframework:cloud-fabric:$cloudVersion")!!)
+    include(modImplementation("org.incendo:cloud-fabric:$cloudVersion")!!)
 }
 tasks {
     processResources {

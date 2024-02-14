@@ -5,7 +5,6 @@ plugins {
 }
 val velocityVersion: String by project
 repositories {
-    mavenLocal() // cloud v2
     maven("https://repo.papermc.io/repository/maven-public/") {
         name = "papermc-repo"
     }
@@ -13,10 +12,6 @@ repositories {
         name = "elytrium-repo"
     }
     maven("https://mvn.exceptionflug.de/repository/exceptionflug-public/")
-    // Velocity use adventure 4.15.0-SNAPSHOT
-    maven("https://s01.oss.sonatype.org/content/repositories/snapshots/") {
-        name = "sonatype-snapshots-repo"
-    }
 }
 dependencies {
     implementation(rootProject.project("common"))
@@ -24,12 +19,12 @@ dependencies {
     compileOnly("org.yaml:snakeyaml:2.0")
     compileOnly("com.velocitypowered:velocity-api:$velocityVersion")
     kapt("com.velocitypowered:velocity-api:$velocityVersion")
-    compileOnly("com.velocitypowered:velocity-proxy:3.3.0-SNAPSHOT")
+    compileOnly("com.velocitypowered:velocity-proxy:3.3.0.1-SNAPSHOT")
     val nettyVersion: String by project
     compileOnly("io.netty:netty-transport:$nettyVersion")
 
     val cloudVersion: String by project
-    implementation("cloud.commandframework:cloud-velocity:$cloudVersion")
+    implementation("org.incendo:cloud-velocity:$cloudVersion")
     compileOnly("com.electronwill.night-config:toml:3.6.7")
 
     compileOnly("net.elytrium.limboapi:api:1.1.18")

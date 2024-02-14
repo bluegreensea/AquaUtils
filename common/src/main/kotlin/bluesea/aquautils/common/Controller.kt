@@ -2,12 +2,6 @@ package bluesea.aquautils.common
 
 import bluesea.aquautils.common.Constants.MOD_ID
 import bluesea.aquautils.fetcher.YoutubeFetcher
-import cloud.commandframework.CommandManager
-import cloud.commandframework.arguments.standard.BooleanParser
-import cloud.commandframework.arguments.standard.StringParser
-import cloud.commandframework.arguments.suggestion.Suggestion
-import cloud.commandframework.arguments.suggestion.SuggestionProvider
-import cloud.commandframework.context.CommandContext
 import java.util.UUID
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.identity.Identity
@@ -15,6 +9,12 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.format.NamedTextColor
+import org.incendo.cloud.CommandManager
+import org.incendo.cloud.context.CommandContext
+import org.incendo.cloud.parser.standard.BooleanParser
+import org.incendo.cloud.parser.standard.StringParser
+import org.incendo.cloud.suggestion.Suggestion
+import org.incendo.cloud.suggestion.SuggestionProvider
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -354,7 +354,7 @@ object Controller {
                         ).fetch()
                     }
                     ytChatLooper!!.start()
-                    allPlayers.sendMessage(
+                    allPlayers.audience.sendMessage(
                         ytChatPrefix.append(Component.text("啟動成功!"))
                     )
                     LOGGER.info("YTChat 啟動成功!")
@@ -383,7 +383,7 @@ object Controller {
                     if (!command.contains("all")) {
                         ctx.sender().sendMessage(urlMessage)
                     } else {
-                        allPlayers.sendMessage(urlMessage)
+                        allPlayers.audience.sendMessage(urlMessage)
                     }
                 } else {
                     ctx.sender().sendMessage(

@@ -1,16 +1,16 @@
 package bluesea.aquautils
 
 import bluesea.aquautils.common.Constants.MOD_ID
-import cloud.commandframework.arguments.standard.StringParser
-import cloud.commandframework.arguments.suggestion.Suggestion
-import cloud.commandframework.arguments.suggestion.SuggestionProvider
-import cloud.commandframework.context.CommandContext
-import cloud.commandframework.velocity.VelocityCommandManager
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.identity.Identity
 import net.kyori.adventure.text.Component
+import org.incendo.cloud.context.CommandContext
+import org.incendo.cloud.parser.standard.StringParser
+import org.incendo.cloud.suggestion.Suggestion
+import org.incendo.cloud.suggestion.SuggestionProvider
+import org.incendo.cloud.velocity.VelocityCommandManager
 
 object PluginCommand {
     fun register(manager: VelocityCommandManager<VelocityAudience>, server: ProxyServer) {
