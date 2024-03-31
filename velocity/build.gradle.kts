@@ -45,7 +45,7 @@ tasks {
         archiveClassifier.set("with-dependencies")
         archiveVersion.set("")
         val dependencyDir = "${project.group}.dependencies"
-        relocate("cloud.commandframework", "$dependencyDir.cloud")
+        relocate("org.incendo", "$dependencyDir.cloud")
         relocate("io.leangen.geantyref", "$dependencyDir.typetoken")
         relocate("org.jsoup", "$dependencyDir.jsoup")
     }
