@@ -4,8 +4,7 @@ import io.netty.buffer.ByteBuf
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 
-abstract class CommonAudience<C> protected constructor(val audience: Audience, val source: C) {
-    abstract val isPlayer: Boolean
+abstract class CommonAudience<S> protected constructor(val source: S, val audience: Audience) {
 
     abstract fun hasPermission(permission: String): Boolean
 

@@ -1,25 +1,21 @@
 package bluesea.aquautils.fetcher
 
+import bluesea.aquautils.common.CommonAudience
 import bluesea.aquautils.common.Controller
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import java.awt.Color
-import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.jsoup.Jsoup
 
 // Refer to https://github.com/YuutaTsubasa/ChatroomFetcher
-class YoutubeFetcher(allPlayers: Audience, liveId: String) {
-    @Suppress("ktlint:standard:property-naming")
-    private val _liveId: String
-
-    @Suppress("ktlint:standard:property-naming")
-    private val _liveChatApiUri: String
-    private val allPlayers: Audience
+class YoutubeFetcher<S>(private val allPlayers: CommonAudience<S>, val liveId: String) {
+    private val liveChatApiUri = String.format(LIVE_CHAT_API_URI_FORMAT, liveId)
 
     companion object {
+        const val WATCH_URI = "https://www.youtube.com/watch?v="
         private const val LIVE_CHAT_API_URI_FORMAT = "https://www.youtube.com/live_chat?is_popout=1&v=%s"
         private const val GET_LIVE_CHAT_API_URI_FORMAT = "https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=%s&prettyPrint=false"
 
@@ -28,17 +24,11 @@ class YoutubeFetcher(allPlayers: Audience, liveId: String) {
         var allComments = emptyArray<JsonElement>()
     }
 
-    init {
-        this.allPlayers = allPlayers
-        _liveId = liveId
-        _liveChatApiUri = String.format(LIVE_CHAT_API_URI_FORMAT, liveId)
-    }
-
     @Synchronized
     fun fetch() {
-        if (_liveId.isEmpty()) return
+        if (liveId.isEmpty()) return
         try {
-            val httpConnection = Jsoup.connect(_liveChatApiUri)
+            val httpConnection = Jsoup.connect(liveChatApiUri)
                 .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.50")
                 .header("origin", "https://www.youtube.com")
 
@@ -59,7 +49,7 @@ class YoutubeFetcher(allPlayers: Audience, liveId: String) {
                 "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
             clientData.connectionType = "CONN_CELLULAR_4G"
             clientData.MainAppWebInfo = YoutubeChatRequestData.MainAppWebInfoData(
-                graftUrl = _liveChatApiUri,
+                graftUrl = liveChatApiUri,
                 isWebNativeShareAvailable = true,
                 webDisplayMode = "WEB_DISPLAY_MODE_BROWSER"
             )
@@ -257,12 +247,13 @@ class YoutubeFetcher(allPlayers: Audience, liveId: String) {
     }
 
     @Suppress("FunctionName")
-    private fun _ConvertRunNode(runNode: JsonElement): String =
-        if (runNode.asJsonObject.has("emoji")) {
+    private fun _ConvertRunNode(runNode: JsonElement): String {
+        return if (runNode.asJsonObject.has("emoji")) {
             runNode.asJsonObject["emoji"].asJsonObject["shortcuts"].asJsonArray[0].asString
         } else {
             runNode.asJsonObject["text"].asString
         }
+    }
 
     @Suppress("FunctionName")
     private fun _ConvertToComment(existedUserIds: HashSet<String>, renderer: JsonElement): JsonElement {

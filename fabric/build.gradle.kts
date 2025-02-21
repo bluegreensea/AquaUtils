@@ -1,19 +1,14 @@
 plugins {
     id("fabric-loom")
 }
-repositories {
-    maven("https://oss.sonatype.org/content/repositories/snapshots")
-}
 dependencies {
-    include(implementation(rootProject.project("common"))!!)
+    include(implementation(project(":common"))!!)
 
     val minecraftVersion: String by project
     minecraft("com.mojang", "minecraft", minecraftVersion)
-    // val yarnMappings: String by project
-    // mappings("net.fabricmc", "yarn", yarnMappings, null, "v2")
     mappings(loom.officialMojangMappings())
-    val loaderVersion: String by project
-    modImplementation("net.fabricmc", "fabric-loader", loaderVersion)
+    val fabricLoaderVersion: String by project
+    modImplementation("net.fabricmc", "fabric-loader", fabricLoaderVersion)
 
     val fabricVersion: String by project
     modRuntimeOnly("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
@@ -24,13 +19,13 @@ dependencies {
     modImplementation("net.fabricmc", "fabric-language-kotlin", fabricKotlinVersion)
 
     val adventurePlatformFabricVersion: String by project
-    include(modImplementation("net.kyori:adventure-platform-fabric:$adventurePlatformFabricVersion")!!)
-    val cloudVersion: String by project
-    include(modImplementation("org.incendo:cloud-fabric:$cloudVersion")!!)
+    include(modImplementation("net.kyori:adventure-platform-mod-shared-fabric-repack:$adventurePlatformFabricVersion")!!)
+    val cloudMinecraftModdedVersion: String by project
+    include(modImplementation("org.incendo:cloud-fabric:$cloudMinecraftModdedVersion")!!)
 }
 tasks {
     processResources {
         inputs.property("version", project.version)
-        filesMatching("fabric.mod.json") { expand(mutableMapOf("version" to project.version)) }
+        filesMatching("fabric.mod.json") { expand(mapOf("version" to project.version)) }
     }
 }

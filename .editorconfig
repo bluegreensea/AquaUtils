@@ -279,9 +279,11 @@ ij_java_wrap_comments = false
 ij_java_wrap_first_method_in_call_chain = false
 ij_java_wrap_long_lines = false
 
-# Custom
-[*.{gradle.kts,kt,kts}]
+# Kotlin
+[*.{kt,kts}]
 ktlint_code_style = intellij_idea
+ktlint_standard_class-signature = disabled
+ktlint_standard_function-expression-body = disabled
 ij_kotlin_allow_trailing_comma = false
 ij_kotlin_allow_trailing_comma_on_call_site = false
 ij_kotlin_block_comment_add_space = true
