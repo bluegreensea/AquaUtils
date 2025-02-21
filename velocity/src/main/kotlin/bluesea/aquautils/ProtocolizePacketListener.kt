@@ -7,7 +7,7 @@ import dev.simplix.protocolize.api.listener.PacketSendEvent
 import dev.simplix.protocolize.data.packets.HeldItemChange
 import dev.simplix.protocolize.data.packets.UseItem
 
-class PacketListener {
+class ProtocolizePacketListener {
     class UseItemPacketListener : AbstractPacketListener<UseItem>(UseItem::class.java, Direction.UPSTREAM, 0) {
         override fun packetReceive(event: PacketReceiveEvent<UseItem>) {
         }

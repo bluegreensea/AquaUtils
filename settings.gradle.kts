@@ -1,14 +1,11 @@
 pluginManagement {
     repositories {
-        maven("https://maven.fabricmc.net") { name = "Fabric" }
         mavenCentral()
+        maven("https://maven.fabricmc.net") { name = "Fabric" }
         gradlePluginPortal()
     }
     plugins {
-        val loomVersion: String by settings
-        id("fabric-loom") version loomVersion
-        val kotlinVersion: String by System.getProperties()
-        kotlin("jvm") version kotlinVersion
+        id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
     }
 }
 

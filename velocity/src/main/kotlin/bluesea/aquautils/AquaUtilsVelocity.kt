@@ -1,5 +1,7 @@
 package bluesea.aquautils
 
+import bluesea.aquautils.brigadier.VelocityArgumentTypeRegistry
+import bluesea.aquautils.brigadier.VelocityBrigadierMapper
 import bluesea.aquautils.common.Constants
 import bluesea.aquautils.common.Controller
 import com.google.inject.Inject
@@ -21,9 +23,9 @@ import org.incendo.cloud.velocity.VelocityCommandManager
 import org.slf4j.Logger
 
 @Plugin(
-    id = Constants.MOD_ID,
-    name = Constants.MOD_NAME,
-    version = Constants.MOD_VERSION,
+    id = Constants.ID,
+    name = Constants.NAME,
+    version = Constants.VERSION,
     authors = ["bluegreensea"],
     dependencies = [
         Dependency(id = "mckotlin-velocity"),
@@ -51,9 +53,9 @@ class AquaUtilsVelocity @Inject constructor(
         // if (!dataDirectory.exists()) {
         //     dataDirectory.createDirectory()
         // }
-        // val configFile = File("$dataDirectory${File.separator}config.toml")
+        // val configFile = Path("$dataDirectory${File.separator}config.toml")
         // if (!configFile.exists()) {
-        //     configFile.createNewFile()
+        //     configFile.createFile()
         // }
         // config = FileConfig.of(configFile)
     }
@@ -64,6 +66,25 @@ class AquaUtilsVelocity @Inject constructor(
         // config.load()
         // Controller.kick = config.getOrElse("kick", Controller.kick)
 
+        val audienceProvider = VelocityAudienceProvider(proxyServer)
+        val velocityCommandManager = VelocityCommandManager(
+            pluginContainer,
+            proxyServer,
+            ExecutionCoordinator.builder<VelocityAudience>().synchronizeExecution().build(),
+            SenderMapper.create(audienceProvider::get, VelocityAudience::source)
+        )
+
+        VelocityArgumentTypeRegistry.replace(logger)
+        val velocityBrigadierManager = VelocityBrigadierMapper(velocityCommandManager)
+        velocityBrigadierManager.registerMappings()
+
+        Controller.register(velocityCommandManager, audienceProvider)
+
+        PluginCommand.register(velocityCommandManager)
+
+        proxyServer.eventManager.register(this, pluginListener)
+
+        // other plugin
         if (limboFactory != null && limboFactory is LimboFactory) {
             limbo = LimboServer(this)
             proxyServer.eventManager.register(this, limbo)
@@ -76,21 +97,8 @@ class AquaUtilsVelocity @Inject constructor(
                 0.0f
             )
             limbo.server = limboFactory.createLimbo(limbo.world).setName("LimboLobby").setWorldTime(6000)
+            logger.info("enabled limboAPI support")
         }
-
-        val audienceProvider = VelocityAudienceProvider(proxyServer)
-        val velocityCommandManager = VelocityCommandManager(
-            pluginContainer,
-            proxyServer,
-            ExecutionCoordinator.builder<VelocityAudience>().synchronizeExecution().build(),
-            SenderMapper.create(audienceProvider::get, VelocityAudience::source)
-        )
-
-        Controller.register(velocityCommandManager, audienceProvider)
-
-        PluginCommand.register(velocityCommandManager, proxyServer)
-
-        proxyServer.eventManager.register(this, pluginListener)
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -98,12 +106,14 @@ class AquaUtilsVelocity @Inject constructor(
     fun onProxyShutdownEvent(event: ProxyShutdownEvent) {
         if (Controller.ytChatLooper != null && Controller.ytChatLooper!!.isAlive) {
             Controller.ytChatLooper!!.interrupt()
-            logger.info("YTChat 已關閉!")
         }
         proxyServer.eventManager.unregisterListener(this, pluginListener)
         if (limboFactory != null && limboFactory is LimboFactory) {
             proxyServer.eventManager.unregisterListener(this, limbo)
         }
+
+        VelocityArgumentTypeRegistry.restore(logger)
+
         // config.close()
     }
 }

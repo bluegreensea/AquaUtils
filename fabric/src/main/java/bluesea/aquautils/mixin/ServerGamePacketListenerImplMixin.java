@@ -2,10 +2,9 @@ package bluesea.aquautils.mixin;
 
 import bluesea.aquautils.FabricAudience;
 import bluesea.aquautils.common.Controller;
+import net.kyori.adventure.audience.Audience;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.LastSeenMessages;
-import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundChatPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,30 +21,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ServerGamePacketListenerImplMixin extends ServerCommonPacketListenerImpl {
     @Shadow
     public ServerPlayer player;
-    @Shadow
-    private int chatSpamTickCount;
 
     public ServerGamePacketListenerImplMixin(MinecraftServer minecraftServer, Connection connection, CommonListenerCookie commonListenerCookie) {
         super(minecraftServer, connection, commonListenerCookie);
     }
 
-    @Inject(at = @At("HEAD"), method = "handleChat")
+    @Inject(method = "handleChat", at = @At("HEAD"))
     private void onChatMessage(ServerboundChatPacket serverboundChatPacket, CallbackInfo ci) {
-        boolean kick = Controller.INSTANCE.onPlayerMessage(
-            player,
+        Audience audience = (Audience) player;
+        Controller.INSTANCE.onPlayerMessage(
+            audience,
             serverboundChatPacket.message(),
-            new FabricAudience(player, player.server.createCommandSourceStack())
+            new FabricAudience(player.server.createCommandSourceStack(), audience)
         );
+        boolean kick = Controller.INSTANCE.onPlayerDetectSpam(audience, serverboundChatPacket.message());
         if (kick && !player.hasPermissions(5)) {
             this.disconnect(Component.nullToEmpty("已重複3次(含)以上"));
         }
     }
 
-    @Inject(at = @At("HEAD"), method = "performChatCommand")
-    private void onPerformChatCommand(ServerboundChatCommandPacket serverboundChatCommandPacket,
-                                    LastSeenMessages lastSeenMessages, CallbackInfo ci) {
-        if (this.chatSpamTickCount > 20) {
-            this.chatSpamTickCount -= 20;
-        }
+    @Inject(method = "detectRateSpam", at = @At(value = "HEAD"), cancellable = true)
+    private void onDetectRateSpam(CallbackInfo ci) {
+        ci.cancel();
     }
 }

@@ -1,6 +1,8 @@
 package bluesea.aquautils.common
 
-import bluesea.aquautils.common.Constants.MOD_ID
+import bluesea.aquautils.common.Constants.ID
+import bluesea.aquautils.common.parser.CommonPlayers
+import bluesea.aquautils.common.parser.CommonVoteOption
 import bluesea.aquautils.fetcher.YoutubeFetcher
 import java.util.UUID
 import net.kyori.adventure.audience.Audience
@@ -19,11 +21,11 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 object Controller {
-    val LOGGER: Logger = LoggerFactory.getLogger(Constants.MOD_NAME)
+    val LOGGER: Logger = LoggerFactory.getLogger(Constants.NAME)
     private val lastMessage = HashMap<UUID, String>()
     private val lastTimes = HashMap<UUID, Int>()
     private var voteReset = false
-    private val voteData = VoteData(
+    val voteData = VoteData(
         voteStrings = HashMap(),
         optionStrings = ArrayList(9),
         winnerOption = Component.text().content("無紀錄"),
@@ -35,7 +37,7 @@ object Controller {
     private val voteOptionColor = NamedTextColor.GREEN
     private var voteTextComponent = Component.text()
     var kick = true
-    private lateinit var videoId: String
+    private lateinit var ytFetcher: YoutubeFetcher<*>
     var ytChatLooper: Thread? = null
     val serverLinks = mutableMapOf<String, Pair<Component, String>>()
 
@@ -47,15 +49,15 @@ object Controller {
         return serverLinks.map { (_, v) -> v }
     }
 
-    fun <M : CommandManager<C>, C : CommonAudience<S>, S> register(manager: M, provider: CommonAudienceProvider<S>) {
+    fun <M : CommandManager<T>, T : CommonAudience<S>, S> register(manager: M, provider: CommonAudienceProvider<S, T>) {
         manager.command(
-            manager.commandBuilder(MOD_ID)
+            manager.commandBuilder(ID)
                 .handler {
                     aquautils(it)
                 }
         ).command(
-            manager.commandBuilder(MOD_ID)
-                .permission("$MOD_ID.command")
+            manager.commandBuilder(ID)
+                .permission("$ID.command")
                 .required("command", StringParser.stringParser())
                 .optional("switch", BooleanParser.booleanParser())
                 .handler {
@@ -65,14 +67,15 @@ object Controller {
 
         manager.command(
             manager.commandBuilder("votereset")
-                .permission("$MOD_ID.votereset")
+                .permission("$ID.votereset")
                 .optional("options", StringParser.greedyStringParser()) { c, s ->
+                    // TODO: options history
                     val suggestions = arrayListOf<Suggestion>()
                     if (!s.peekString().contains(SILENT_OPTION_STRING)) {
-                        suggestions.add(Suggestion.simple(SILENT_OPTION_STRING))
+                        suggestions.add(Suggestion.suggestion(SILENT_OPTION_STRING))
                     }
                     SuggestionProvider
-                        .suggesting<C>(suggestions)
+                        .suggesting<T>(suggestions)
                         .suggestionsFuture(c, s)
                 }
                 .handler {
@@ -82,14 +85,7 @@ object Controller {
 
         manager.command(
             manager.commandBuilder("voteget")
-                .optional("target", StringParser.greedyStringParser()) { c, s ->
-                    // TODO: suggestion available vote options
-                    SuggestionProvider
-                        .suggesting<C>(
-                            suggestionsFilteredPlayer(s.peekString(), provider.getAllPlayersAudience(c.sender().source))
-                        )
-                        .suggestionsFuture(c, s)
-                }
+                .optional("option", provider.parsersProvider().voteOptionParser())
                 .handler {
                     voteget(it, provider.getAllPlayersAudience(it.sender().source))
                 }
@@ -97,58 +93,45 @@ object Controller {
 
         manager.command(
             manager.commandBuilder("voteset")
-                .permission("$MOD_ID.voteset")
+                .permission("$ID.voteset")
                 .required("value", StringParser.stringParser())
-                .optional("target", StringParser.greedyStringParser()) { c, s ->
-                    SuggestionProvider
-                        .suggesting<C>(
-                            suggestionsFilteredPlayer(s.peekString(), provider.getAllPlayersAudience(c.sender().source))
-                        )
-                        .suggestionsFuture(c, s)
-                }
+                .optional("target", provider.parsersProvider().playersParser())
                 .handler {
                     voteset(it, provider.getAllPlayersAudience(it.sender().source))
                 }
         )
 
+        val vytchatBuilder = manager.commandBuilder("vytchat")
+            .handler {
+                vytchat(it, provider.getAllPlayersAudience(it.sender().source))
+            }
         manager.command(
-            manager.commandBuilder("vytchat")
-                .permission("$MOD_ID.vytchat")
+            vytchatBuilder
+                .permission("$ID.vytchat")
                 .literal("start")
                 .required("videoid", StringParser.greedyStringParser())
-                .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
-                }
         ).command(
-            manager.commandBuilder("vytchat")
-                .permission("$MOD_ID.vytchat")
+            vytchatBuilder
+                .permission("$ID.vytchat")
                 .literal("stop")
-                .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
-                }
         ).command(
-            manager.commandBuilder("vytchat")
+            vytchatBuilder
+                .permission("$ID.vytchat")
+                .literal("urlbroadcast")
+        ).command(
+            vytchatBuilder
                 .literal("url")
-                .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
-                }
-        ).command(
-            manager.commandBuilder("vytchat")
-                .permission("$MOD_ID.vytchat")
-                .literal("urlall")
-                .handler {
-                    vytchat(it, provider.getAllPlayersAudience(it.sender().source))
-                }
         )
     }
 
+    @Suppress("SpellCheckingInspection")
     private fun <C : CommonAudience<S>, S> aquautils(ctx: CommandContext<C>) {
         val command = ctx.optional<String>("command")
         val switch = ctx.optional<Boolean>("switch")
 
         if (command.isEmpty) {
-            ctx.sender().sendMessage(Component.text("version: ${Constants.MOD_VERSION}"))
-        } else if (ctx.hasPermission("$MOD_ID.command")) {
+            ctx.sender().sendMessage(Component.text("version: ${Constants.VERSION}"))
+        } else if (ctx.hasPermission("$ID.command")) {
             if (switch.isEmpty) {
                 ctx.sender().sendMessage(
                     Component.text("Aqua Utils kick: $kick")
@@ -163,6 +146,7 @@ object Controller {
         }
     }
 
+    @Suppress("SpellCheckingInspection")
     private fun <C : CommonAudience<*>> votereset(ctx: CommandContext<C>, console: CommonAudience<*>, allPlayers: CommonAudience<*>) {
         val options = ctx.optional<String>("options")
 
@@ -233,23 +217,24 @@ object Controller {
         voteData.result = Component.text()
         voteData.resultForOther = Component.text()
         val votesByName = HashMap<String, Int>()
-        voteData.voteStrings.forEach { (uuid, optionStr) ->
+        voteData.voteStrings.forEach { (uuid, votedString) ->
             try {
-                if (optionStr.substring(1).toInt() !in 1..voteData.optionStrings.size) {
-                    throw Exception()
+                val voteValue = votedString.substring(1).toInt()
+                if (voteValue !in 1..voteData.optionStrings.size) {
+                    throw NumberFormatException()
                 }
-            } catch (_: Exception) {
+            } catch (_: NumberFormatException) {
                 allPlayers.audience.forEachAudience { player ->
                     if (player.get(Identity.UUID).isPresent && player.get(Identity.UUID).get() == uuid) {
                         voteData.resultForOther.append(Component.newline())
                             .append(player.get(Identity.DISPLAY_NAME).get())
                             .append(Component.text(" 投了 "))
-                            .append(Component.text(optionStr).color(voteStringColor))
+                            .append(Component.text(votedString).color(voteStringColor))
                     }
                 }
                 return@forEach
             }
-            votesByName[optionStr] = votesByName.getOrDefault(optionStr, 0) + 1
+            votesByName[votedString] = votesByName.getOrDefault(votedString, 0) + 1
         }
         var winnerOptionVotes = 0
         voteData.winnerOption = Component.text().content("無紀錄")
@@ -275,10 +260,11 @@ object Controller {
         // allPlayers.sendPluginMessage("test", buf)
     }
 
+    @Suppress("SpellCheckingInspection")
     private fun <C : CommonAudience<S>, S> voteget(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        val target = ctx.optional<String>("target")
+        val voteOption = ctx.optional<CommonVoteOption<C>>("option")
 
-        if (target.isEmpty) {
+        if (voteOption.isEmpty) {
             ctx.sender().sendMessage(
                 Component.text("投票結果: ")
                     .append(voteData.winnerOption.build())
@@ -287,15 +273,17 @@ object Controller {
             )
         } else {
             val result = Component.text()
-            if (target.get()[0] == '+') {
+            val option = voteOption.get().option
+            val players = voteOption.get().players
+            if (players == null) {
                 allPlayers.audience.forEachAudience { player ->
                     if (player.get(Identity.DISPLAY_NAME).isPresent) {
                         val playerUuid = player.get(Identity.UUID).get()
                         val playerDisplayName = player.get(Identity.DISPLAY_NAME).get() as TextComponent
-                        if (voteData.voteStrings[playerUuid] != null && voteData.voteStrings[playerUuid] == target.get()) {
+                        if (voteData.voteStrings[playerUuid] != null && voteData.voteStrings[playerUuid] == option) {
                             if (result.content() == "") {
                                 result.content("投 ")
-                                    .append(Component.text(target.get()).color(voteStringColor))
+                                    .append(Component.text(option).color(voteStringColor))
                                     .append(Component.text(" 的玩家: "))
                                     .append(Component.newline())
                             } else {
@@ -306,8 +294,8 @@ object Controller {
                     }
                 }
             } else {
-                val filteredPlayer = getFilteredPlayer(ctx, allPlayers)
-                filteredPlayer.forEachAudience { player ->
+                players.forEach {
+                    val player = it.audience
                     if (player.get(Identity.DISPLAY_NAME).isPresent) {
                         val playerUuid = player.get(Identity.UUID).get()
                         val playerDisplayName = player.get(Identity.DISPLAY_NAME).get() as TextComponent
@@ -316,7 +304,7 @@ object Controller {
                             result.append(playerDisplayName)
                                 .append(Component.text(" 的投票紀錄: "))
                                 .append(Component.text(voteData.voteStrings[playerUuid]!!).color(voteStringColor))
-                        } else if (target.get() != "@a") {
+                        } else if (option != "@a") {
                             result.append(playerDisplayName)
                                 .append(Component.text(" 的投票紀錄: "))
                                 .append(Component.text("無紀錄"))
@@ -330,21 +318,22 @@ object Controller {
         }
     }
 
+    @Suppress("SpellCheckingInspection")
     private fun <C : CommonAudience<S>, S> voteset(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        val target = ctx.optional<String>("target")
         var value = ctx.get<String>("value")
         if (value[0] != '+') value = "+$value"
 
+        val target = ctx.optional<CommonPlayers<C>>("target")
         if (target.isEmpty) {
             onPlayerVote(ctx.sender().audience, ctx.sender().audience, value, allPlayers)
         } else {
-            val filteredPlayer = getFilteredPlayer(ctx, allPlayers)
-            filteredPlayer.forEachAudience { player: Audience ->
-                onPlayerVote(ctx.sender().audience, player, value, allPlayers)
+            target.get().players.forEach { player ->
+                onPlayerVote(ctx.sender().audience, player.audience, value, allPlayers)
             }
         }
     }
 
+    @Suppress("SpellCheckingInspection")
     private fun <C : CommonAudience<S>, S> vytchat(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
         // val command = ctx.rawInput[1]
         val command = ctx.rawInput().input().split(" ")[1]
@@ -353,17 +342,14 @@ object Controller {
         val ytChatPrefix = Component.text("[YTChat] ").color(NamedTextColor.RED)
         when (command) {
             "start" -> {
-                videoId = videoid.get()
-                videoId = videoId.replace("https://www.youtube.com/watch?v=", "")
+                val videoId = videoid.get().replace(YoutubeFetcher.WATCH_URI, "")
                 if (ytChatLooper == null || !ytChatLooper!!.isAlive) {
                     ytChatLooper = Thread {
-                        YoutubeFetcher(
-                            allPlayers.audience,
-                            videoId
-                        ).fetch()
+                        ytFetcher = YoutubeFetcher(allPlayers, videoId)
+                        ytFetcher.fetch()
                     }
                     ytChatLooper!!.start()
-                    allPlayers.audience.sendMessage(
+                    allPlayers.sendMessage(
                         ytChatPrefix.append(Component.text("啟動成功!"))
                     )
                     LOGGER.info("YTChat 啟動成功!")
@@ -376,7 +362,6 @@ object Controller {
             "stop" -> {
                 if (ytChatLooper != null && ytChatLooper!!.isAlive) {
                     ytChatLooper!!.interrupt()
-                    LOGGER.info("YTChat 已關閉!")
                 } else {
                     ctx.sender().sendMessage(
                         ytChatPrefix.append(Component.text("尚未啟動!"))
@@ -384,57 +369,20 @@ object Controller {
                 }
             }
             "url", "urlall" -> {
-                if (ytChatLooper != null && ytChatLooper!!.isAlive && Controller::videoId.isInitialized) {
-                    val url = "https://www.youtube.com/watch?v=$videoId"
+                if (ytChatLooper != null && ytChatLooper!!.isAlive) {
+                    val url = "${YoutubeFetcher.WATCH_URI}${ytFetcher.liveId}"
                     val urlMessage = ytChatPrefix
                         .append(Component.text("直播網址: "))
                         .append(Component.text(url).clickEvent(ClickEvent.openUrl(url)))
-                    if (!command.contains("all")) {
+                    if (!command.endsWith("all")) {
                         ctx.sender().sendMessage(urlMessage)
                     } else {
-                        allPlayers.audience.sendMessage(urlMessage)
+                        allPlayers.sendMessage(urlMessage)
                     }
                 } else {
                     ctx.sender().sendMessage(
                         ytChatPrefix.append(Component.text("尚未啟動!"))
                     )
-                }
-            }
-        }
-    }
-
-    fun suggestionsFilteredPlayer(input: String, allPlayers: Audience): ArrayList<Suggestion> {
-        val completions = arrayListOf<Suggestion>()
-        if ("@a".contains(input.lowercase())) {
-            completions.add(Suggestion.simple("@a"))
-        }
-        if ("@s".contains(input.lowercase())) {
-            completions.add(Suggestion.simple("@s"))
-        }
-        allPlayers.forEachAudience { player: Audience ->
-            player.get(Identity.NAME).ifPresent { name: String ->
-                if (name.lowercase().contains(input.lowercase())) {
-                    completions.add(Suggestion.simple(name))
-                }
-            }
-        }
-        return completions
-    }
-
-    private fun suggestionsFilteredPlayer(input: String, allPlayers: CommonAudience<*>): ArrayList<Suggestion> {
-        return suggestionsFilteredPlayer(input, allPlayers.audience)
-    }
-
-    private fun <C : CommonAudience<S>, S> getFilteredPlayer(ctx: CommandContext<C>, allPlayers: CommonAudience<S>): Audience {
-        when (val target = ctx.get<String>("target")) {
-            "@a" -> return allPlayers.audience
-            "@s" -> return ctx.sender().audience
-            else -> {
-                return allPlayers.audience.filterAudience { player ->
-                    if (player.get(Identity.NAME).isPresent) {
-                        return@filterAudience player.get(Identity.NAME).get().lowercase() == target.lowercase()
-                    }
-                    false
                 }
             }
         }
@@ -471,7 +419,7 @@ object Controller {
         }
     }
 
-    fun <S> onPlayerMessage(player: Audience, message: String, allPlayers: CommonAudience<S>): Boolean {
+    fun <S> onPlayerMessage(player: Audience, message: String, allPlayers: CommonAudience<S>) {
         if (player.get(Identity.UUID).isPresent) {
             val index = player.get(Identity.UUID).get()
             if (message.contains("+")) {
@@ -479,7 +427,12 @@ object Controller {
                     onPlayerVote(player, player, message, allPlayers)
                 }
             }
+        }
+    }
 
+    fun onPlayerDetectSpam(player: Audience, message: String): Boolean {
+        if (player.get(Identity.UUID).isPresent) {
+            val index = player.get(Identity.UUID).get()
             if (message != lastMessage.getOrDefault(index, "")) {
                 lastMessage[index] = message
                 lastTimes[index] = 0

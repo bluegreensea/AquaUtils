@@ -7,6 +7,7 @@ import com.james090500.VelocityGUI.helpers.InventoryLauncher
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.connection.DisconnectEvent
 import com.velocitypowered.api.event.player.PlayerChatEvent
+import com.velocitypowered.api.event.player.PlayerClientBrandEvent
 import com.velocitypowered.api.event.player.ServerPostConnectEvent
 import java.util.UUID
 import net.kyori.adventure.audience.Audience
@@ -18,13 +19,14 @@ class PluginListener(private val plugin: AquaUtilsVelocity) {
     @Subscribe
     fun onPlayerChat(event: PlayerChatEvent) {
         val player = Audience.audience(event.player)
-        val kick = Controller.onPlayerMessage(
+        Controller.onPlayerMessage(
             player,
             event.message,
-            VelocityAudience(plugin.proxyServer, plugin.proxyServer.consoleCommandSource)
+            VelocityAudience(plugin.proxyServer.consoleCommandSource, plugin.proxyServer)
         )
+        val kick = Controller.onPlayerDetectSpam(player, event.message)
         if (kick) {
-            if (!event.player.hasPermission("${Constants.MOD_ID}.kick.bypass")) {
+            if (!event.player.hasPermission("${Constants.ID}.kick.bypass")) {
                 event.player.disconnect(Component.text("已重複3次(含)以上"))
             }
         }
@@ -51,5 +53,17 @@ class PluginListener(private val plugin: AquaUtilsVelocity) {
     fun onPlayerDisconnect(event: DisconnectEvent) {
         val player = event.player
         lobbyPlayer.remove(player.uniqueId)
+    }
+
+    @Subscribe
+    fun onPlayerClientBrand(event: PlayerClientBrandEvent) {
+        Controller.LOGGER.info(event.player.username + " joined with brand " + event.brand)
+        if (event.brand.contains("Feather")) { // Feather fabric
+            event.player.disconnect(
+                Component.empty()
+                    .append(Component.translatable("disconnect.closed"))
+                    .append(Component.text("\n備註：\n偵測到 Feather，此模組有問題導致此中斷\n請不要使用 Feather"))
+            )
+        }
     }
 }

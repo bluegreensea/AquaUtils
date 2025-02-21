@@ -1,24 +1,20 @@
 package bluesea.aquautils
 
-import bluesea.aquautils.common.Constants
 import bluesea.aquautils.common.Controller
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback
-import net.fabricmc.fabric.api.networking.v1.PacketSender
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.multiplayer.ClientPacketListener
-import net.minecraft.network.FriendlyByteBuf
-import net.minecraft.resources.ResourceLocation
 import org.incendo.cloud.SenderMapper
 import org.incendo.cloud.execution.ExecutionCoordinator
 import org.incendo.cloud.fabric.FabricServerCommandManager
 
 class AquaUtilsFabric : ModInitializer {
     override fun onInitialize() {
+        PayloadTypeRegistry.playS2C().register(VoteDataPacket.ID, VoteDataPacket.CODEC)
+        PayloadTypeRegistry.playC2S().register(VoteDataPacket.ID, VoteDataPacket.CODEC)
         when (FabricLoader.getInstance().environmentType) {
             EnvType.SERVER -> onInitializeServer()
             EnvType.CLIENT -> onInitializeClient()
@@ -43,13 +39,11 @@ class AquaUtilsFabric : ModInitializer {
     }
 
     private fun onInitializeClient() {
-        ClientPlayNetworking.registerGlobalReceiver(
-            ResourceLocation(Constants.MOD_ID, "test")
-        ) { client: Minecraft, _: ClientPacketListener, bytebuf: FriendlyByteBuf, _: PacketSender ->
+        ClientPlayNetworking.registerGlobalReceiver(VoteDataPacket.ID) { payload, context ->
             HudRenderCallback.EVENT.register(
-                HudRenderCallback { guiGraphics: GuiGraphics, _: Float ->
-                    val font = client.font
-                    guiGraphics.drawString(font, "Text", 0, 0, 0xffffff)
+                HudRenderCallback { guiGraphics, _ ->
+                    val textRenderer = context.client().font
+                    guiGraphics.drawString(textRenderer, "Text", 0, 0, 0xffffff, false)
                 }
             )
         }
