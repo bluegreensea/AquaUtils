@@ -30,10 +30,10 @@ class PluginListener(private val plugin: AquaUtilsVelocity) {
         }
     }
 
-    @Suppress("UnstableApiUsage")
     @Subscribe
     fun onPlayerServerConnect(event: ServerPostConnectEvent) {
         val player = event.player
+        VelocityAudience(player).setServerLinks(Controller.getServerLinks())
         if (plugin.velocityGUI != null && plugin.velocityGUI is VelocityGUI) {
             player.currentServer.ifPresent { currentServer ->
                 if (currentServer.serverInfo.name == "minigame") {

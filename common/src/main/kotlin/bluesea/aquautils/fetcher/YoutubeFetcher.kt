@@ -122,6 +122,8 @@ class YoutubeFetcher(allPlayers: Audience, liveId: String) {
                 )
             )
 
+            Controller.serverLinks["vytchat"] = Pair(Component.text("直播連結"), "$WATCH_URI$liveId")
+            allPlayers.setServerLinks(Controller.getServerLinks())
             Controller.LOGGER.info("Preset done!")
             initialComments.forEach { comment ->
                 allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
@@ -192,6 +194,10 @@ class YoutubeFetcher(allPlayers: Audience, liveId: String) {
             Thread.currentThread().interrupt()
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+        if (Controller.serverLinks.containsKey("vytchat")) {
+            Controller.serverLinks.remove("vytchat")
+            allPlayers.setServerLinks(Controller.getServerLinks())
         }
         allPlayers.sendMessage(
             Component.empty()

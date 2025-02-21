@@ -37,6 +37,15 @@ object Controller {
     var kick = true
     private lateinit var videoId: String
     var ytChatLooper: Thread? = null
+    val serverLinks = mutableMapOf<String, Pair<Component, String>>()
+
+    init {
+        serverLinks["dc"] = Pair(Component.text("DC 群"), "https://discord.gg/xxxxxxx")
+    }
+
+    fun getServerLinks(): List<Pair<Component, String>> {
+        return serverLinks.map { (_, v) -> v }
+    }
 
     fun <M : CommandManager<C>, C : CommonAudience<S>, S> register(manager: M, provider: CommonAudienceProvider<S>) {
         manager.command(

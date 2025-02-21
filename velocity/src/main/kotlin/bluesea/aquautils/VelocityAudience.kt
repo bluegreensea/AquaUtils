@@ -5,6 +5,7 @@ import bluesea.aquautils.common.Constants
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier
+import com.velocitypowered.api.util.ServerLink
 import io.netty.buffer.ByteBuf
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
@@ -18,6 +19,19 @@ class VelocityAudience(audience: Audience, source: CommandSource) : CommonAudien
 
     override fun sendMessage(component: Component) {
         source.sendMessage(component)
+    }
+
+    override fun setServerLinks(serverLinks: List<Pair<Component, String>>) {
+        audience.forEachAudience { player ->
+            if (player is Player) {
+                val newServerLinks = serverLinks.map { (component, string) ->
+                    ServerLink.serverLink(component, string)
+                }
+                try {
+                    player.setServerLinks(newServerLinks)
+                } catch (_: IllegalArgumentException) {}
+            }
+        }
     }
 
     override fun sendPluginMessage(path: String, data: ByteBuf) {

@@ -13,5 +13,7 @@ abstract class CommonAudience<C> protected constructor(val audience: Audience, v
         audience.sendMessage(component)
     }
 
+    abstract fun setServerLinks(serverLinks: List<Pair<Component, String>>)
+
     abstract fun sendPluginMessage(path: String, data: ByteBuf)
 }
