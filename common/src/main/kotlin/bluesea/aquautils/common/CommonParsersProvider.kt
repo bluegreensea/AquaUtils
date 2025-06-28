@@ -12,5 +12,5 @@ interface CommonParsersProvider<
     > {
     fun playersParser(): ParserDescriptor<C, L>
 
-    fun voteOptionParser(): ParserDescriptor<C, O>
+    fun voteOptionParser(vararg otherArgs: String): ParserDescriptor<C, O>
 }

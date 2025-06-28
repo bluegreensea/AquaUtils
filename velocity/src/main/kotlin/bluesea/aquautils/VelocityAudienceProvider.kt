@@ -1,9 +1,9 @@
 package bluesea.aquautils
 
 import bluesea.aquautils.common.CommonAudienceProvider
+import bluesea.aquautils.parser.VelocityPlayers
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.proxy.ProxyServer
-import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 
 class VelocityAudienceProvider(private val proxyServer: ProxyServer) : CommonAudienceProvider<CommandSource, VelocityAudience> {
@@ -20,8 +20,8 @@ class VelocityAudienceProvider(private val proxyServer: ProxyServer) : CommonAud
         return consoleServerAudience
     }
 
-    override fun getAllPlayersAudience(source: CommandSource): VelocityAudience {
-        return VelocityAudience(source, proxyServer)
+    override fun getAllPlayers(): VelocityPlayers {
+        return VelocityPlayers(proxyServer.allPlayers.map { VelocityAudience(it, it) })
     }
 
     override fun get(source: CommandSource): VelocityAudience {
@@ -34,9 +34,5 @@ class VelocityAudienceProvider(private val proxyServer: ProxyServer) : CommonAud
                 player.sendMessage(component)
             }
         }
-    }
-
-    override fun apply(source: CommandSource): Audience {
-        return source
     }
 }

@@ -14,9 +14,10 @@ import org.incendo.cloud.suggestion.BlockingSuggestionProvider
 import org.incendo.cloud.suggestion.Suggestion
 
 abstract class CommonVoteOptionParser<C : CommonAudience<*>, T : CommonVoteOption<C>, P : CommonPlayersParser<C, L>, L : CommonPlayers<C>>(
-    private val playersParser: P
+    private val playersParser: P,
+    private vararg val otherArgs: String
 ) : ArgumentParser<C, T>, BlockingSuggestionProvider<C> {
-    abstract fun voteOption(input: String, players: ArrayList<C>?): T
+    abstract fun voteOption(input: String, players: List<C>?): T
     abstract fun tooltipMessage(message: Component): Message
 
     override fun parse(
@@ -33,15 +34,18 @@ abstract class CommonVoteOptionParser<C : CommonAudience<*>, T : CommonVoteOptio
         commandContext: CommandContext<C>,
         commandInput: CommandInput
     ): Iterable<Suggestion> {
-        val voteOptionSuggestions = arrayListOf<Suggestion>()
-        voteOptionSuggestions.addAll(
+        val suggestions = arrayListOf<Suggestion>()
+        suggestions.addAll(
             playersParser.suggestions(commandContext, commandInput.copy())
         )
-        Controller.voteData.optionStrings.forEachIndexed { index, optionString ->
-            voteOptionSuggestions.add(
-                TooltipSuggestion.suggestion("+${index + 1}", tooltipMessage(Component.translatable(optionString)))
+        Controller.voteData.options.forEachIndexed { index, optionString ->
+            suggestions.add(
+                TooltipSuggestion.suggestion(
+                    "+${(index + 1).toString(Controller.VOTE_OPTIONS_RADIX)}",
+                    tooltipMessage(Component.text(optionString))
+                )
             )
         }
-        return voteOptionSuggestions
+        return suggestions
     }
 }

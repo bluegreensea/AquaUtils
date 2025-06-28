@@ -4,9 +4,10 @@ import java.util.UUID
 import net.kyori.adventure.text.TextComponent
 
 data class VoteData(
-    val voteStrings: HashMap<UUID, String>,
-    val optionStrings: ArrayList<String>,
-    var winnerOption: TextComponent.Builder,
+    val playerVotes: HashMap<UUID, String>,
+    val options: ArrayList<String>,
+    var winnerOption: TextComponent,
+    var winnerOptionVotes: Int,
     var result: TextComponent.Builder,
     var resultForOther: TextComponent.Builder
 )

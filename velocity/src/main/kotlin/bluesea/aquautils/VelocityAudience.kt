@@ -17,10 +17,6 @@ class VelocityAudience(source: CommandSource, audience: Audience) : CommonAudien
         return source.hasPermission(permission)
     }
 
-    override fun sendMessage(component: Component) {
-        audience.sendMessage(component)
-    }
-
     override fun setServerLinks(serverLinks: List<Pair<Component, String>>) {
         audience.forEachAudience { player ->
             if (player is Player) {

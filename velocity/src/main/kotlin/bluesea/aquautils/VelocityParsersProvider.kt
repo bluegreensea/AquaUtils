@@ -18,7 +18,7 @@ class VelocityParsersProvider : CommonParsersProvider<
         return VelocityPlayersParser.playersParser()
     }
 
-    override fun voteOptionParser(): ParserDescriptor<VelocityAudience, VelocityVoteOption> {
-        return VelocityVoteOptionParser.voteOptionParser()
+    override fun voteOptionParser(vararg otherArgs: String): ParserDescriptor<VelocityAudience, VelocityVoteOption> {
+        return VelocityVoteOptionParser.voteOptionParser(*otherArgs)
     }
 }

@@ -16,10 +16,6 @@ class FabricAudience(source: CommandSourceStack, audience: Audience) : CommonAud
         return source.hasPermission(4)
     }
 
-    override fun sendMessage(component: Component) {
-        audience.sendMessage(component)
-    }
-
     override fun setServerLinks(serverLinks: List<Pair<Component, String>>) {
         audience.forEachAudience { player ->
             if (player is ServerPlayer) {

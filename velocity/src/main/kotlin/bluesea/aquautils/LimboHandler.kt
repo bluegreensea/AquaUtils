@@ -1,5 +1,6 @@
 package bluesea.aquautils
 
+import bluesea.aquautils.common.Controller
 import bluesea.aquautils.util.InventoryLauncher
 import com.james090500.VelocityGUI.VelocityGUI
 import java.util.concurrent.TimeUnit
@@ -16,12 +17,10 @@ class LimboHandler(private val plugin: AquaUtilsVelocity) : LimboSessionHandler 
         plugin.limbo.players.add(player)
 
         plugin.proxyServer.scheduler
-            .buildTask(
-                plugin,
-                Runnable {
-                    InventoryLauncher(plugin.velocityGUI as VelocityGUI).execute("servers", player.proxyPlayer)
-                }
-            )
+            .buildTask(plugin) { _ ->
+                InventoryLauncher(plugin.velocityGUI as VelocityGUI)
+                    .execute(Controller.serversPanel, player.proxyPlayer)
+            }
             .repeat(5L, TimeUnit.SECONDS)
             .schedule()
     }

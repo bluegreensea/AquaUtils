@@ -6,7 +6,7 @@ plugins {
     kotlin("jvm") version kotlinVersion
     id("org.jetbrains.kotlin.kapt") version kotlinVersion apply false
     id("net.kyori.blossom") version "2.1.0" apply false
-    id("com.gradleup.shadow") version "8.3.5" apply false
+    id("com.gradleup.shadow") version "8.3.6" apply false
     id("xyz.jpenilla.run-velocity") version "2.3.1" apply false
     val fabricLoomVersion: String by System.getProperties()
     id("fabric-loom") version fabricLoomVersion apply false
@@ -19,7 +19,7 @@ allprojects {
 }
 val ktlint: Configuration by configurations.creating
 dependencies {
-    ktlint("com.pinterest.ktlint:ktlint-cli:1.5.0") {
+    ktlint("com.pinterest.ktlint:ktlint-cli:1.6.0") {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
         }

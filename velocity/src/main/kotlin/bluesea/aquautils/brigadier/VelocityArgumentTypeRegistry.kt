@@ -1,12 +1,12 @@
 package bluesea.aquautils.brigadier
 
 import bluesea.aquautils.arguments.PlayersArgumentType
+import bluesea.aquautils.util.ReflectionUtil.reflectionMapRemove
 import com.mojang.brigadier.arguments.ArgumentType
 import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.proxy.protocol.packet.brigadier.ArgumentIdentifier
 import com.velocitypowered.proxy.protocol.packet.brigadier.ArgumentPropertyRegistry
 import com.velocitypowered.proxy.protocol.packet.brigadier.ArgumentPropertySerializer
-import java.lang.reflect.Field
 import org.slf4j.Logger
 
 @Suppress("MemberVisibilityCanBePrivate")
@@ -43,7 +43,7 @@ object VelocityArgumentTypeRegistry {
     }
 
     fun <T> unregisterRestoreEmpty(identifier: ArgumentIdentifier, serializer: ArgumentPropertySerializer<T>, logger: Logger) {
-        unregister(identifier.identifier, playersArgumentTypeClass)
+        unregister(identifier, playersArgumentTypeClass)
         empty(identifier, serializer)
         logger.info("The argument type {} has been restored", identifier.identifier)
     }
@@ -79,7 +79,7 @@ object VelocityArgumentTypeRegistry {
         registerMethod.invoke(null, identifier, serializer)
     }
 
-    fun <T : ArgumentType<*>> unregister(identifier: String, klass: Class<T>) {
+    fun <T : ArgumentType<*>> unregister(identifier: ArgumentIdentifier, klass: Class<T>) {
         val byIdentifierField = argumentPropertyRegistryClass.getDeclaredField("byIdentifier")
         byIdentifierField.isAccessible = true
         val byClassField = argumentPropertyRegistryClass.getDeclaredField("byClass")
@@ -96,19 +96,8 @@ object VelocityArgumentTypeRegistry {
         @Suppress("UNCHECKED_CAST")
         val classToId = classToIdField.get(null) as Map<Class<T>, ArgumentIdentifier>
 
-        reflectionMapRemove(byIdentifierField, byIdentifier, { it.identifier }, identifier)
+        reflectionMapRemove(byIdentifierField, byIdentifier, { it.identifier }, identifier.identifier)
         reflectionMapRemove(byClassField, byClass, { it.name }, klass.name)
         reflectionMapRemove(classToIdField, classToId, { it.name }, klass.name)
-    }
-
-    private fun <K, V> reflectionMapRemove(mapField: Field, map: Map<K, V>, name1: (K) -> String, name2: String) {
-        val mapClass = mapField.type
-        val mapRemoveMethod = mapClass.getDeclaredMethod("remove", Object::class.java)
-        for (entry in map) {
-            if (name1.invoke(entry.key) == name2) {
-                mapRemoveMethod.invoke(map, entry.key)
-                break
-            }
-        }
     }
 }

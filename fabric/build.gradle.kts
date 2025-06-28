@@ -12,7 +12,8 @@ dependencies {
 
     val fabricVersion: String by project
     modRuntimeOnly("net.fabricmc.fabric-api", "fabric-api", fabricVersion)
-    modImplementation(fabricApi.module("fabric-command-api-v2", fabricVersion))
+    modImplementation(fabricApi.module("fabric-lifecycle-events-v1", fabricVersion))
+    modImplementation(fabricApi.module("fabric-message-api-v1", fabricVersion))
     modImplementation(fabricApi.module("fabric-networking-api-v1", fabricVersion))
     modImplementation(fabricApi.module("fabric-rendering-v1", fabricVersion))
     val fabricKotlinVersion: String by project

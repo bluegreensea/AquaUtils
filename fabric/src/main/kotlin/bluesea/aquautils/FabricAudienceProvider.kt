@@ -2,11 +2,13 @@ package bluesea.aquautils
 
 import bluesea.aquautils.common.CommonAudienceProvider
 import bluesea.aquautils.common.CommonParsersProvider
+import bluesea.aquautils.common.parser.CommonPlayers
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.server.MinecraftServer
 
-class FabricAudienceProvider : CommonAudienceProvider<CommandSourceStack, FabricAudience> {
+class FabricAudienceProvider(private val server: MinecraftServer) : CommonAudienceProvider<CommandSourceStack, FabricAudience> {
     override fun parsersProvider(): CommonParsersProvider<CommandSourceStack, FabricAudience, *, *> {
         TODO("Not yet implemented")
     }
@@ -15,8 +17,8 @@ class FabricAudienceProvider : CommonAudienceProvider<CommandSourceStack, Fabric
         return null!!
     }
 
-    override fun getAllPlayersAudience(source: CommandSourceStack): FabricAudience {
-        return FabricAudience(source, source.server.playerList.players as Audience)
+    override fun getAllPlayers(): CommonPlayers<FabricAudience> {
+        return CommonPlayers(server.playerList.players.map { FabricAudience(it.createCommandSourceStack(), it as Audience) })
     }
 
     override fun get(source: CommandSourceStack): FabricAudience {
@@ -24,14 +26,10 @@ class FabricAudienceProvider : CommonAudienceProvider<CommandSourceStack, Fabric
     }
 
     override fun broadcast(source: CommandSourceStack, component: Component, permission: String) {
-        for (player in source.server.playerList.players) {
+        for (player in server.playerList.players) {
             if (player.hasPermissions(4)) {
                 (player as Audience).sendMessage(component)
             }
         }
-    }
-
-    override fun apply(source: CommandSourceStack): Audience {
-        return source as Audience
     }
 }

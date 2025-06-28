@@ -1,10 +1,10 @@
 package bluesea.aquautils
 
 import bluesea.aquautils.common.Constants.ID
-import bluesea.aquautils.parser.Players
 import bluesea.aquautils.parser.VelocityPlayers
 import bluesea.aquautils.parser.VelocityPlayersParser
 import com.velocitypowered.api.proxy.Player
+import kotlin.jvm.optionals.getOrNull
 import net.kyori.adventure.text.Component
 import org.incendo.cloud.context.CommandContext
 import org.incendo.cloud.parser.standard.StringParser
@@ -18,7 +18,7 @@ object PluginCommand {
                 .required("target", VelocityPlayersParser.playersParser())
                 .optional("reason", StringParser.greedyStringParser())
                 .handler { ctx ->
-                    val target = ctx.get<Players>("target")
+                    val target = ctx.get<VelocityPlayers>("target")
                     val reason = ctx.optional<String>("reason")
                     target.players.forEach {
                         val player = it.source as Player
@@ -38,10 +38,9 @@ object PluginCommand {
                 .literal("brand")
                 .required("target", VelocityPlayersParser.playersParser())
                 .handler { ctx ->
-                    playerRichInfo(
+                    playerInfoMod(
                         ctx,
-                        { it.clientBrand != null },
-                        { "${it.clientBrand}" },
+                        { it.clientBrand },
                         "no brand"
                     )
                 }
@@ -50,11 +49,17 @@ object PluginCommand {
                 .literal("virtualhost")
                 .required("target", VelocityPlayersParser.playersParser())
                 .handler { ctx ->
-                    playerRichInfo(
+                    playerInfoMod(
                         ctx,
-                        { it.virtualHost.isPresent },
-                        { "${it.virtualHost.get().hostName}:${it.virtualHost.get().port}" },
-                        "no virtualhost"
+                        { it.virtualHost.getOrNull() },
+                        "no virtualhost",
+                        { player, info ->
+                            if (info.address != null) {
+                                "${info.address.hostAddress}:${info.port}"
+                            } else {
+                                "${info.hostString}:${info.port}"
+                            }
+                        }
                     )
                 }
         ).command(
@@ -76,15 +81,34 @@ object PluginCommand {
                 .literal("version")
                 .required("target", VelocityPlayersParser.playersParser())
                 .handler { ctx ->
-                    playerInfo(ctx) {
-                        "${it.protocolVersion}"
-                    }
+                    playerInfo(ctx) { "${it.protocolVersion}" }
+                }
+        ).command(
+            vgetBuilder
+                .literal("vvinfo")
+                .required("target", VelocityPlayersParser.playersParser())
+                .handler { ctx ->
+                    playerInfoMod(
+                        ctx,
+                        { PluginVVListener.playersDetails[it] },
+                        "not use vv",
+                        { player, info -> PluginVVListener.playersChannel[player] + info.versionName }
+                    )
                 }
         )
     }
 
     private fun playerInfo(ctx: CommandContext<VelocityAudience>, info: (Player) -> String) {
         playerRichInfo(ctx, { true }, info, "")
+    }
+
+    private fun <T> playerInfoMod(
+        ctx: CommandContext<VelocityAudience>,
+        info: (Player) -> T?,
+        fallbackInfo: String,
+        infoMod: (Player, T) -> String = { player, info -> info as String }
+    ) {
+        playerRichInfo(ctx, { info.invoke(it) != null }, { infoMod.invoke(it, info.invoke(it)!!) }, fallbackInfo)
     }
 
     private fun playerRichInfo(
@@ -95,8 +119,8 @@ object PluginCommand {
     ) {
         val target = ctx.get<VelocityPlayers>("target")
         target.players.forEach {
-            val fullInfo = if (it.audience is Player) {
-                val player = it.audience as Player
+            val fullInfo = if (it.source is Player) {
+                val player = it.source as Player
                 "${player.username}: " + if (condition.invoke(player)) {
                     info.invoke(player)
                 } else {

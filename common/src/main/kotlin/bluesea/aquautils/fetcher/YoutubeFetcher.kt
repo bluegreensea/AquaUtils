@@ -1,6 +1,6 @@
 package bluesea.aquautils.fetcher
 
-import bluesea.aquautils.common.CommonAudience
+import bluesea.aquautils.common.CommonAudienceProvider
 import bluesea.aquautils.common.Controller
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -11,8 +11,11 @@ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.jsoup.Jsoup
 
 // Refer to https://github.com/YuutaTsubasa/ChatroomFetcher
-class YoutubeFetcher<S>(private val allPlayers: CommonAudience<S>, val liveId: String) {
+class YoutubeFetcher(private val provider: CommonAudienceProvider<*, *>, val liveId: String, var sendMsgs: Boolean) {
     private val liveChatApiUri = String.format(LIVE_CHAT_API_URI_FORMAT, liveId)
+    val chatLooper = Thread {
+        fetch()
+    }
 
     companion object {
         const val WATCH_URI = "https://www.youtube.com/watch?v="
@@ -113,10 +116,14 @@ class YoutubeFetcher<S>(private val allPlayers: CommonAudience<S>, val liveId: S
             )
 
             Controller.serverLinks["vytchat"] = Pair(Component.text("直播連結"), "$WATCH_URI$liveId")
-            allPlayers.setServerLinks(Controller.getServerLinks())
+            provider.getAllPlayers().setServerLinks(Controller.getServerLinks())
             Controller.LOGGER.info("Preset done!")
-            initialComments.forEach { comment ->
-                allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
+            if (sendMsgs) {
+                initialComments.forEach { comment ->
+                    provider.getAllPlayers().sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
+                }
+            } else {
+                sendMsgs = true
             }
 
             val getLiveChatApiUri = String.format(GET_LIVE_CHAT_API_URI_FORMAT, apiKey)
@@ -156,7 +163,7 @@ class YoutubeFetcher<S>(private val allPlayers: CommonAudience<S>, val liveId: S
                             allComments = allComments.plus(comments)
 
                             comments.forEach { comment ->
-                                allPlayers.sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
+                                provider.getAllPlayers().sendMessage(GsonComponentSerializer.gson().deserializeFromTree(comment))
                             }
                         }
                     } catch (e: NullPointerException) {
@@ -187,13 +194,15 @@ class YoutubeFetcher<S>(private val allPlayers: CommonAudience<S>, val liveId: S
         }
         if (Controller.serverLinks.containsKey("vytchat")) {
             Controller.serverLinks.remove("vytchat")
-            allPlayers.setServerLinks(Controller.getServerLinks())
+            provider.getAllPlayers().setServerLinks(Controller.getServerLinks())
         }
-        allPlayers.sendMessage(
-            Component.empty()
-                .append(Component.text("[YTChat] ").color(NamedTextColor.RED))
-                .append(Component.text("已關閉!"))
-        )
+        if (sendMsgs) {
+            provider.getAllPlayers().sendMessage(
+                Component.empty()
+                    .append(Component.text("[YTChat] ").color(NamedTextColor.RED))
+                    .append(Component.text("已關閉!"))
+            )
+        }
     }
 
     @Suppress("FunctionName")

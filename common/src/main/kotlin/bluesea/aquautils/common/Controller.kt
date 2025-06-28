@@ -1,9 +1,11 @@
 package bluesea.aquautils.common
 
 import bluesea.aquautils.common.Constants.ID
+import bluesea.aquautils.common.parser.CommonCommandOptionsParser
 import bluesea.aquautils.common.parser.CommonPlayers
 import bluesea.aquautils.common.parser.CommonVoteOption
 import bluesea.aquautils.fetcher.YoutubeFetcher
+import java.util.Optional
 import java.util.UUID
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.identity.Identity
@@ -15,8 +17,8 @@ import org.incendo.cloud.CommandManager
 import org.incendo.cloud.context.CommandContext
 import org.incendo.cloud.parser.standard.BooleanParser
 import org.incendo.cloud.parser.standard.StringParser
-import org.incendo.cloud.suggestion.Suggestion
-import org.incendo.cloud.suggestion.SuggestionProvider
+import org.incendo.cloud.suggestion.FilteringSuggestionProcessor
+import org.incendo.cloud.util.StringUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -24,32 +26,67 @@ object Controller {
     val LOGGER: Logger = LoggerFactory.getLogger(Constants.NAME)
     private val lastMessage = HashMap<UUID, String>()
     private val lastTimes = HashMap<UUID, Int>()
+    private const val SILENT_OPTION_STRING = "--silent"
+    private const val LESS_OPTION_STRING = "--less"
+
+    private val ignoredVoteChars = arrayOf(" ", "+")
+    private val voteStringColor = NamedTextColor.YELLOW
+    private val voteOptionColor = NamedTextColor.GREEN
+    const val VOTE_OPTIONS_RADIX = 16
     private var voteReset = false
     val voteData = VoteData(
-        voteStrings = HashMap(),
-        optionStrings = ArrayList(9),
-        winnerOption = Component.text().content("無紀錄"),
+        playerVotes = HashMap(),
+        options = ArrayList(VOTE_OPTIONS_RADIX - 1),
+        winnerOption = Component.text("無紀錄"),
+        winnerOptionVotes = 0,
         result = Component.text(),
         resultForOther = Component.text()
     )
-    private const val SILENT_OPTION_STRING = "--silent"
-    private val voteStringColor = NamedTextColor.YELLOW
-    private val voteOptionColor = NamedTextColor.GREEN
     private var voteTextComponent = Component.text()
+
+    val voteHistory = arrayListOf<String>()
     var kick = true
-    private lateinit var ytFetcher: YoutubeFetcher<*>
-    var ytChatLooper: Thread? = null
+    var discord = "https://discord.gg/xxxxxxx"
+    var lobbyServer = "lobby"
+    var serversPanel = "servers"
+    var serverIpService = "https://api.ipify.org"
+    var fallbackServerIp = ""
+    var fallbackServerPort = 25565
+    var ytLiveIdRecord = ""
+
+    var ytFetcher: YoutubeFetcher? = null
     val serverLinks = mutableMapOf<String, Pair<Component, String>>()
 
-    init {
-        serverLinks["dc"] = Pair(Component.text("DC 群"), "https://discord.gg/xxxxxxx")
+    fun init(console: CommonAudience<*>, provider: CommonAudienceProvider<*, *>) {
+        initServerLinks()
+
+        restoreVotes(console, provider.getAllPlayers())
+        restoreYtChat(provider)
+    }
+
+    private fun initServerLinks() {
+        serverLinks["dc"] = Pair(Component.text("DC 群"), discord)
+    }
+
+    private fun restoreVotes(console: CommonAudience<*>, allPlayers: CommonPlayers<*>) {
+        if (voteData.options.isNotEmpty()) {
+            voteCounting(Optional.of(console), allPlayers, silent = true)
+            voteReset = true
+        }
+    }
+
+    private fun restoreYtChat(provider: CommonAudienceProvider<*, *>) {
+        if (ytLiveIdRecord.isNotBlank()) {
+            ytFetcher = YoutubeFetcher(provider, ytLiveIdRecord, false)
+            ytFetcher!!.chatLooper.start()
+        }
     }
 
     fun getServerLinks(): List<Pair<Component, String>> {
-        return serverLinks.map { (_, v) -> v }
+        return serverLinks.values.toList()
     }
 
-    fun <M : CommandManager<T>, T : CommonAudience<S>, S> register(manager: M, provider: CommonAudienceProvider<S, T>) {
+    fun <M : CommandManager<C>, C : CommonAudience<S>, S> register(manager: M, provider: CommonAudienceProvider<S, C>) {
         manager.command(
             manager.commandBuilder(ID)
                 .handler {
@@ -68,26 +105,48 @@ object Controller {
         manager.command(
             manager.commandBuilder("votereset")
                 .permission("$ID.votereset")
-                .optional("options", StringParser.greedyStringParser()) { c, s ->
-                    // TODO: options history
-                    val suggestions = arrayListOf<Suggestion>()
-                    if (!s.peekString().contains(SILENT_OPTION_STRING)) {
-                        suggestions.add(Suggestion.suggestion(SILENT_OPTION_STRING))
-                    }
-                    SuggestionProvider
-                        .suggesting<T>(suggestions)
-                        .suggestionsFuture(c, s)
-                }
+                .optional(
+                    "options",
+                    CommonCommandOptionsParser.voteHistoryParser(*voteHistory.toTypedArray())
+                    // CommonCommandOptionsParser.voteHistoryParser(Controller.voteHistory + SILENT_OPTION_STRING)
+                )
                 .handler {
-                    votereset(it, provider.getConsoleServerAudience(), provider.getAllPlayersAudience(it.sender().source))
+                    votereset(it, Optional.of(provider.getConsoleServerAudience()), provider.getAllPlayers())
                 }
         )
 
+        manager.suggestionProcessor(
+            FilteringSuggestionProcessor(
+                FilteringSuggestionProcessor.Filter.startsWith<C>(true).and { _, s, i ->
+                    StringUtils.trimBeforeLastSpace(s, i)
+                }
+            )
+        )
+
+        // manager.command(
+        //     manager.commandBuilder("votehistory")
+        //         .permission("$ID.votehistory")
+        //         .optional("options", CommonVoteHistoryParser.voteHistoryParser())
+        //         .handler {
+        //             votehisoty(it, provider.getConsoleServerAudience(), provider.getAllPlayersAudience(it.sender()))
+        //         }
+        // )
+
         manager.command(
             manager.commandBuilder("voteget")
-                .optional("option", provider.parsersProvider().voteOptionParser())
+                .optional("voteoption", provider.parsersProvider().voteOptionParser(LESS_OPTION_STRING))
+                // .optional("options", StringParser.stringParser())
+                // { c, i ->
+                //     val suggestions = arrayListOf<String>()
+                //     if (!i.peekString().contains(LESS_OPTION_STRING)) {
+                //         suggestions.add(LESS_OPTION_STRING)
+                //     }
+                //     SuggestionProvider
+                //         .suggestingStrings<C>(suggestions)
+                //         .suggestionsFuture(c, i)
+                // }
                 .handler {
-                    voteget(it, provider.getAllPlayersAudience(it.sender().source))
+                    voteget(it, provider.getAllPlayers())
                 }
         )
 
@@ -97,18 +156,23 @@ object Controller {
                 .required("value", StringParser.stringParser())
                 .optional("target", provider.parsersProvider().playersParser())
                 .handler {
-                    voteset(it, provider.getAllPlayersAudience(it.sender().source))
+                    voteset(it, Optional.of(provider.getConsoleServerAudience()), provider.getAllPlayers())
                 }
         )
 
         val vytchatBuilder = manager.commandBuilder("vytchat")
             .handler {
-                vytchat(it, provider.getAllPlayersAudience(it.sender().source))
+                vytchat(it, provider.getAllPlayers(), provider)
             }
         manager.command(
             vytchatBuilder
                 .permission("$ID.vytchat")
                 .literal("start")
+                .required("videoid", StringParser.greedyStringParser())
+        ).command(
+            vytchatBuilder
+                .permission("$ID.vytchat")
+                .literal("start_continue")
                 .required("videoid", StringParser.greedyStringParser())
         ).command(
             vytchatBuilder
@@ -147,112 +211,174 @@ object Controller {
     }
 
     @Suppress("SpellCheckingInspection")
-    private fun <C : CommonAudience<*>> votereset(ctx: CommandContext<C>, console: CommonAudience<*>, allPlayers: CommonAudience<*>) {
+    private fun <C : CommonAudience<*>> votereset(ctx: CommandContext<C>, console: Optional<CommonAudience<*>>, allPlayers: CommonPlayers<*>) {
         val options = ctx.optional<String>("options")
 
-        val players = allPlayers.audience
         if (options.isEmpty || options.get() == SILENT_OPTION_STRING) {
-            if (voteTextComponent.build().children().isNotEmpty()) {
-                voteData.voteStrings.clear()
-                voteCounting(allPlayers)
-
-                if (options.isEmpty) {
-                    players.sendMessage(voteTextComponent.build())
+            if (voteData.options.isNotEmpty()) {
+                voteDataReset(console, allPlayers)
+                var sign = ""
+                if (!options.isEmpty) {
+                    sign = " (${SILENT_OPTION_STRING.substring(2)})}"
                 }
+                voteResetMessage(ctx.sender(), console, allPlayers, sign, !options.isEmpty)
             } else {
                 ctx.sender().sendMessage(
                     Component.text("需要至少重置一次")
                 )
             }
         } else {
-            voteData.optionStrings.clear()
-            var silent = false
-            val textComponent = Component.text()
+            voteData.options.clear()
+            val commandOptions = options.get().split(" ")
+            var sign = ""
+            val silent = commandOptions.contains(SILENT_OPTION_STRING)
+            if (silent) {
+                sign = " (${SILENT_OPTION_STRING.substring(2)})}"
+            }
             var i = 0
-            for (option in options.get().split(" ")) {
+            for (option in commandOptions) {
                 if (option == SILENT_OPTION_STRING) {
-                    silent = true
                     continue
                 }
                 i++
-                voteData.optionStrings.add(option)
-                textComponent
-                    .append(Component.text("+$i").color(voteStringColor))
-                    .append(Component.space())
-                    .append(Component.text("$option ").color(voteOptionColor))
-                if (i >= 9) {
+                voteData.options.add(option)
+                if (i >= VOTE_OPTIONS_RADIX - 1) {
                     break
                 }
             }
-            voteData.voteStrings.clear()
-            voteCounting(allPlayers)
-            voteReset = true
-            voteTextComponent = Component.text()
-            if (ctx.sender().audience.get(Identity.DISPLAY_NAME).isPresent) {
-                voteTextComponent.append(
-                    Component.translatable(
-                        "chat.type.text",
-                        ctx.sender().audience.get(Identity.DISPLAY_NAME).get(),
-                        textComponent.build()
-                    )
-                )
-            } else {
-                voteTextComponent.append(Component.text("[Server] ")).append(textComponent.build())
+            voteDataReset(console, allPlayers)
+            voteData.options.forEach {
+                if (!voteHistory.contains(it)) {
+                    voteHistory.add(it)
+                }
             }
-            if (!silent) {
-                players.sendMessage(voteTextComponent.build())
-                console.sendMessage(
-                    ctx.sender().audience.get(Identity.DISPLAY_NAME).get()
-                        .append(Component.text(": "))
-                        .append(textComponent.build())
-                )
-            }
+            voteResetMessage(ctx.sender(), console, allPlayers, sign, silent)
         }
     }
 
+    private fun voteResetMessage(
+        sender: CommonAudience<*>,
+        console: Optional<CommonAudience<*>>,
+        allPlayers: CommonPlayers<*>,
+        sign: String,
+        silent: Boolean
+    ) {
+        val textComponent = Component.text()
+        voteData.options.forEachIndexed { i, option ->
+            textComponent
+                .append(
+                    Component.text("+${(i + 1).toString(VOTE_OPTIONS_RADIX).uppercase()}").color(voteStringColor)
+                ).appendSpace()
+                .append(Component.text(option).color(voteOptionColor)).appendSpace()
+        }
+        voteTextComponent = Component.text()
+        if (sender.audience.get(Identity.DISPLAY_NAME).isPresent) {
+            voteTextComponent.append(
+                Component.translatable(
+                    "chat.type.text",
+                    sender.audience.get(Identity.DISPLAY_NAME).get().append(Component.text(sign)),
+                    textComponent.build()
+                )
+            )
+        } else {
+            voteTextComponent.append(Component.text("[Server]")).append(Component.text(sign)).appendSpace()
+                .append(textComponent.build())
+        }
+        console.ifPresent {
+            it.sendMessage(
+                sender.audience.get(Identity.DISPLAY_NAME).get()
+                    .append(Component.text(sign))
+                    .append(Component.text(":")).appendSpace()
+                    .append(textComponent.build())
+            )
+        }
+        if (!silent) {
+            allPlayers.sendMessage(voteTextComponent.build())
+        } else {
+            sender.sendMessage(voteTextComponent.build())
+        }
+    }
+
+    private fun voteDataReset(console: Optional<CommonAudience<*>>, allPlayers: CommonPlayers<*>) {
+        voteData.playerVotes.clear()
+        voteData.winnerOption = Component.text("無紀錄")
+        voteData.winnerOptionVotes = 0
+        voteCounting(console, allPlayers, silent = true)
+    }
+
     // TODO: voteData network
-    private fun voteCounting(allPlayers: CommonAudience<*>, index: UUID? = null, value: String? = null) {
+    private fun voteCounting(
+        console: Optional<CommonAudience<*>>,
+        allPlayers: CommonPlayers<*>,
+        index: UUID? = null,
+        value: String? = null,
+        silent: Boolean = false
+    ) {
         if (index != null && value != null) {
+        }
+        val votesByOption = LinkedHashMap<String, Int>()
+        for (votedInt in 0..<voteData.options.size) {
+            val votedString = "+${(votedInt + 1).toString(VOTE_OPTIONS_RADIX).uppercase()}"
+            votesByOption[votedString] = 0
         }
         voteData.result = Component.text()
         voteData.resultForOther = Component.text()
-        val votesByName = HashMap<String, Int>()
-        voteData.voteStrings.forEach { (uuid, votedString) ->
+        voteData.playerVotes.forEach { (uuid, votedString) ->
             try {
-                val voteValue = votedString.substring(1).toInt()
-                if (voteValue !in 1..voteData.optionStrings.size) {
+                val voteValue = votedString.substring(1).toInt(VOTE_OPTIONS_RADIX)
+                if (voteValue !in 1..voteData.options.size) {
                     throw NumberFormatException()
                 }
             } catch (_: NumberFormatException) {
-                allPlayers.audience.forEachAudience { player ->
+                allPlayers.forEachAudience { player ->
                     if (player.get(Identity.UUID).isPresent && player.get(Identity.UUID).get() == uuid) {
                         voteData.resultForOther.append(Component.newline())
-                            .append(player.get(Identity.DISPLAY_NAME).get())
-                            .append(Component.text(" 投了 "))
+                            .append(player.get(Identity.DISPLAY_NAME).get()).appendSpace()
+                            .append(Component.text("投了")).appendSpace()
                             .append(Component.text(votedString).color(voteStringColor))
                     }
                 }
                 return@forEach
             }
-            votesByName[votedString] = votesByName.getOrDefault(votedString, 0) + 1
+            votesByOption.merge(votedString, 1, Int::plus)
         }
-        var winnerOptionVotes = 0
-        voteData.winnerOption = Component.text().content("無紀錄")
-        for ((voteString, votes) in votesByName) {
-            if (voteString.substring(1).toInt() in 1..voteData.optionStrings.size) {
-                val optionString = voteData.optionStrings[voteString.substring(1).toInt() - 1]
-                voteData.result.append(Component.newline())
-                    .append(Component.text(voteString).color(voteStringColor).appendSpace())
-                    .append(Component.text(optionString).color(voteOptionColor))
-                    .append(Component.text(" 票數: $votes"))
-                if (winnerOptionVotes == votes) {
-                    voteData.winnerOption.append(Component.text(", "))
-                        .append(Component.text(optionString))
-                } else if (votes >= winnerOptionVotes) {
-                    voteData.winnerOption = Component.text()
-                        .content(optionString).color(voteOptionColor)
-                    winnerOptionVotes = votes
+        voteData.winnerOptionVotes = 0
+        var winnerOption = Component.text().content("無紀錄")
+        votesByOption.forEach { (votedString, votes) ->
+            try {
+                votedString.substring(1).toInt(VOTE_OPTIONS_RADIX).takeIf { it in 1..voteData.options.size }?.let {
+                    val optionString = voteData.options[it - 1]
+                    voteData.result.append(Component.newline())
+                        .append(Component.text(votedString).color(voteStringColor)).appendSpace()
+                        .append(Component.text(optionString).color(voteOptionColor)).appendSpace()
+                        .append(Component.text("票數:")).appendSpace()
+                        .append(Component.text(votes))
+                    if (votes > 0) {
+                        if (votes == voteData.winnerOptionVotes) {
+                            winnerOption.append(Component.text(",")).appendSpace()
+                                .append(Component.text(optionString).color(voteOptionColor))
+                        } else if (votes > voteData.winnerOptionVotes) {
+                            winnerOption = Component.text()
+                                .append(Component.text(optionString).color(voteOptionColor))
+                            voteData.winnerOptionVotes = votes
+                        }
+                    }
                 }
+            } catch (e: StringIndexOutOfBoundsException) {
+                LOGGER.error("", e)
+            } catch (e: NumberFormatException) {
+                LOGGER.error("", e)
+            } catch (e: IllegalArgumentException) {
+                LOGGER.error("", e)
+            }
+        }
+        if (voteData.winnerOption.toString() != winnerOption.build().toString()) {
+            voteData.winnerOption = winnerOption.build()
+            if (!silent) {
+                val msg = Component.text("投票結果已變更為:").appendSpace()
+                    .append(voteData.winnerOption)
+                console.ifPresent { it.sendMessage(msg) }
+                allPlayers.sendMessage(msg)
             }
         }
 
@@ -261,13 +387,13 @@ object Controller {
     }
 
     @Suppress("SpellCheckingInspection")
-    private fun <C : CommonAudience<S>, S> voteget(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        val voteOption = ctx.optional<CommonVoteOption<C>>("option")
+    private fun <C : CommonAudience<S>, S> voteget(ctx: CommandContext<C>, allPlayers: CommonPlayers<*>) {
+        val voteOption = ctx.optional<CommonVoteOption<C>>("voteoption")
 
         if (voteOption.isEmpty) {
             ctx.sender().sendMessage(
-                Component.text("投票結果: ")
-                    .append(voteData.winnerOption.build())
+                Component.text("投票結果:").appendSpace()
+                    .append(voteData.winnerOption)
                     .append(voteData.result.build())
                     .append(voteData.resultForOther.build())
             )
@@ -276,18 +402,18 @@ object Controller {
             val option = voteOption.get().option
             val players = voteOption.get().players
             if (players == null) {
-                allPlayers.audience.forEachAudience { player ->
+                allPlayers.forEachAudience { player ->
                     if (player.get(Identity.DISPLAY_NAME).isPresent) {
                         val playerUuid = player.get(Identity.UUID).get()
-                        val playerDisplayName = player.get(Identity.DISPLAY_NAME).get() as TextComponent
-                        if (voteData.voteStrings[playerUuid] != null && voteData.voteStrings[playerUuid] == option) {
-                            if (result.content() == "") {
-                                result.content("投 ")
-                                    .append(Component.text(option).color(voteStringColor))
-                                    .append(Component.text(" 的玩家: "))
+                        val playerDisplayName = player.get(Identity.DISPLAY_NAME).get()
+                        if (voteData.playerVotes.contains(playerUuid) && voteData.playerVotes[playerUuid] == option) {
+                            if (result.content().isEmpty()) {
+                                result.append(Component.text("投")).appendSpace()
+                                    .append(Component.text(option).color(voteStringColor)).appendSpace()
+                                    .append(Component.text("的玩家:")).appendSpace()
                                     .append(Component.newline())
                             } else {
-                                result.append(Component.text(", "))
+                                result.append(Component.text(",")).appendSpace()
                             }
                             result.append(playerDisplayName)
                         }
@@ -299,14 +425,14 @@ object Controller {
                     if (player.get(Identity.DISPLAY_NAME).isPresent) {
                         val playerUuid = player.get(Identity.UUID).get()
                         val playerDisplayName = player.get(Identity.DISPLAY_NAME).get() as TextComponent
-                        if (voteData.voteStrings[playerUuid] != null) {
+                        if (voteData.playerVotes[playerUuid] != null) {
                             if (result.children().isNotEmpty()) result.append(Component.newline())
-                            result.append(playerDisplayName)
-                                .append(Component.text(" 的投票紀錄: "))
-                                .append(Component.text(voteData.voteStrings[playerUuid]!!).color(voteStringColor))
+                            result.append(playerDisplayName).appendSpace()
+                                .append(Component.text("的投票紀錄:")).appendSpace()
+                                .append(Component.text(voteData.playerVotes[playerUuid]!!).color(voteStringColor))
                         } else if (option != "@a") {
-                            result.append(playerDisplayName)
-                                .append(Component.text(" 的投票紀錄: "))
+                            result.append(playerDisplayName).appendSpace()
+                                .append(Component.text("的投票紀錄:")).appendSpace()
                                 .append(Component.text("無紀錄"))
                         }
                     }
@@ -319,39 +445,46 @@ object Controller {
     }
 
     @Suppress("SpellCheckingInspection")
-    private fun <C : CommonAudience<S>, S> voteset(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
+    private fun <C : CommonAudience<S>, S> voteset(
+        ctx: CommandContext<C>,
+        console: Optional<CommonAudience<*>>,
+        allPlayers: CommonPlayers<*>
+    ) {
         var value = ctx.get<String>("value")
         if (value[0] != '+') value = "+$value"
 
         val target = ctx.optional<CommonPlayers<C>>("target")
         if (target.isEmpty) {
-            onPlayerVote(ctx.sender().audience, ctx.sender().audience, value, allPlayers)
+            onPlayerVote(ctx.sender(), ctx.sender().audience, value, console, allPlayers, true)
         } else {
             target.get().players.forEach { player ->
-                onPlayerVote(ctx.sender().audience, player.audience, value, allPlayers)
+                onPlayerVote(ctx.sender(), player.audience, value, console, allPlayers, true)
             }
         }
     }
 
     @Suppress("SpellCheckingInspection")
-    private fun <C : CommonAudience<S>, S> vytchat(ctx: CommandContext<C>, allPlayers: CommonAudience<S>) {
-        // val command = ctx.rawInput[1]
+    private fun <C : CommonAudience<S>, S> vytchat(
+        ctx: CommandContext<C>,
+        allPlayers: CommonPlayers<*>,
+        provider: CommonAudienceProvider<S, C>
+    ) {
         val command = ctx.rawInput().input().split(" ")[1]
         val videoid = ctx.optional<String>("videoid")
 
-        val ytChatPrefix = Component.text("[YTChat] ").color(NamedTextColor.RED)
+        val ytChatPrefix = Component.text("[YTChat]").color(NamedTextColor.RED).appendSpace()
         when (command) {
-            "start" -> {
+            "start", "start_continue" -> {
                 val videoId = videoid.get().replace(YoutubeFetcher.WATCH_URI, "")
-                if (ytChatLooper == null || !ytChatLooper!!.isAlive) {
-                    ytChatLooper = Thread {
-                        ytFetcher = YoutubeFetcher(allPlayers, videoId)
-                        ytFetcher.fetch()
+                val sendInitMsgs = command != "start_continue"
+                if (ytFetcher == null || !ytFetcher!!.chatLooper.isAlive) {
+                    ytFetcher = YoutubeFetcher(provider, videoId, sendInitMsgs)
+                    ytFetcher!!.chatLooper.start()
+                    if (sendInitMsgs) {
+                        allPlayers.sendMessage(
+                            ytChatPrefix.append(Component.text("啟動成功!"))
+                        )
                     }
-                    ytChatLooper!!.start()
-                    allPlayers.sendMessage(
-                        ytChatPrefix.append(Component.text("啟動成功!"))
-                    )
                     LOGGER.info("YTChat 啟動成功!")
                 } else {
                     ctx.sender().sendMessage(
@@ -360,8 +493,8 @@ object Controller {
                 }
             }
             "stop" -> {
-                if (ytChatLooper != null && ytChatLooper!!.isAlive) {
-                    ytChatLooper!!.interrupt()
+                if (ytFetcher != null && ytFetcher!!.chatLooper.isAlive) {
+                    ytFetcher!!.chatLooper.interrupt()
                 } else {
                     ctx.sender().sendMessage(
                         ytChatPrefix.append(Component.text("尚未啟動!"))
@@ -369,10 +502,10 @@ object Controller {
                 }
             }
             "url", "urlall" -> {
-                if (ytChatLooper != null && ytChatLooper!!.isAlive) {
-                    val url = "${YoutubeFetcher.WATCH_URI}${ytFetcher.liveId}"
+                if (ytFetcher != null && ytFetcher!!.chatLooper.isAlive) {
+                    val url = "${YoutubeFetcher.WATCH_URI}${ytFetcher!!.liveId}"
                     val urlMessage = ytChatPrefix
-                        .append(Component.text("直播網址: "))
+                        .append(Component.text("直播網址:")).appendSpace()
                         .append(Component.text(url).clickEvent(ClickEvent.openUrl(url)))
                     if (!command.endsWith("all")) {
                         ctx.sender().sendMessage(urlMessage)
@@ -388,65 +521,114 @@ object Controller {
         }
     }
 
-    private fun <S> onPlayerVote(sender: Audience, player: Audience, message: String, allPlayers: CommonAudience<S>) {
+    private fun onPlayerVote(
+        sender: CommonAudience<*>,
+        player: Audience,
+        message: String,
+        console: Optional<CommonAudience<*>>,
+        allPlayers: CommonPlayers<*>,
+        silent: Boolean = false
+    ) {
         if (player.get(Identity.UUID).isPresent) {
             val index = player.get(Identity.UUID).get()
 
-            var value = message.substring(message.indexOf("+"), message.indexOf("+") + 2)
-            if (value.toCharArray()[1] in '\ud800'..'\udfff') {
-                value = message.substring(message.indexOf("+"), message.indexOf("+") + 3)
-            }
-
-            if (voteData.voteStrings[index] == null || voteData.voteStrings[index] != value) {
-                voteData.voteStrings[index] = value
-
-                val voteNumber = Component.text(value).color(voteStringColor)
-                if (sender == player) {
-                    sender.sendMessage(Component.text("已將自己的投票改變為 ").append(voteNumber))
-                } else {
-                    if (player.get(Identity.DISPLAY_NAME).isPresent) {
-                        sender.sendMessage(
-                            Component.text("已將 ")
-                                .append(player.get(Identity.DISPLAY_NAME).get())
-                                .append(Component.text(" 的投票設定為 "))
-                                .append(voteNumber)
-                        )
-                    }
+            try {
+                var value = message.substring(message.indexOf("+").let { it..it + 1 })
+                if (value.toCharArray()[1] in '\ud800'..'\udfff') {
+                    value = message.substring(message.indexOf("+").let { it..it + 2 })
                 }
 
-                voteCounting(allPlayers, index, value)
+                var isIgnoredChar = false
+                for (char in ignoredVoteChars) {
+                    if (value == char) {
+                        isIgnoredChar = true
+                        break
+                    }
+                }
+                try {
+                    val voteValue = value.substring(1).toInt(VOTE_OPTIONS_RADIX)
+                    if (voteValue in 1..voteData.options.size) {
+                        value = value.uppercase()
+                    }
+                } catch (_: NumberFormatException) {}
+                if (!isIgnoredChar && (voteData.playerVotes.contains(index) || voteData.playerVotes[index] != value)) {
+                    voteData.playerVotes[index] = value
+
+                    val voteNumber = Component.text(value).color(voteStringColor)
+                    val msg = Component.text()
+                    val playerDisplayName = player.get(Identity.DISPLAY_NAME)
+                    if (sender.audience == player) {
+                        msg.append(Component.text("已將自己的投票改變為").appendSpace().append(voteNumber))
+                    } else {
+                        if (playerDisplayName.isPresent) {
+                            msg.append(Component.text("已將")).appendSpace()
+                                .append(playerDisplayName.get()).appendSpace()
+                                .append(Component.text("的投票設定為")).appendSpace()
+                                .append(voteNumber)
+                        }
+                    }
+                    sender.audience.get(Identity.DISPLAY_NAME).ifPresent {
+                        if (playerDisplayName.isPresent && console.isPresent) {
+                            console.get().sendMessage(
+                                it.append(Component.text(":")).appendSpace().append(msg.build())
+                            )
+                        }
+                    }
+                    sender.sendMessage(msg.build())
+
+                    voteCounting(console, allPlayers, index, value, silent)
+                }
+            } catch (e: StringIndexOutOfBoundsException) {
+                LOGGER.error("", e)
             }
         }
     }
 
-    fun <S> onPlayerMessage(player: Audience, message: String, allPlayers: CommonAudience<S>) {
-        if (player.get(Identity.UUID).isPresent) {
-            val index = player.get(Identity.UUID).get()
-            if (message.contains("+")) {
-                if (message.substring(message.indexOf("+")).length >= 2 && voteReset) {
-                    onPlayerVote(player, player, message, allPlayers)
-                }
+    fun onPlayerMessage(player: CommonAudience<*>, message: String, console: Optional<CommonAudience<*>>, allPlayers: CommonPlayers<*>) {
+        if (message.contains("+")) {
+            if (message.substring(message.indexOf("+")).length >= 2 && voteReset) {
+                onPlayerVote(player, player.audience, message, console, allPlayers)
             }
         }
+    }
+
+    private fun onPlayerStateChange(player: Audience, console: Optional<CommonAudience<*>>, allPlayers: CommonPlayers<*>, leave: Boolean) {
+        player.get(Identity.UUID).ifPresent { uuid ->
+            if (voteData.playerVotes.containsKey(uuid)) {
+                val value = if (leave) {
+                    ""
+                } else {
+                    voteData.playerVotes[uuid]
+                }
+                voteCounting(console, allPlayers, uuid, value)
+            }
+        }
+    }
+
+    fun onPlayerLogin(player: Audience, console: Optional<CommonAudience<*>>, allPlayers: CommonPlayers<*>) {
+        onPlayerStateChange(player, console, allPlayers, false)
+    }
+
+    fun onPlayerDisconnect(player: Audience, console: Optional<CommonAudience<*>>, allPlayers: CommonPlayers<*>) {
+        onPlayerStateChange(player, console, allPlayers, true)
     }
 
     fun onPlayerDetectSpam(player: Audience, message: String): Boolean {
-        if (player.get(Identity.UUID).isPresent) {
-            val index = player.get(Identity.UUID).get()
-            if (message != lastMessage.getOrDefault(index, "")) {
-                lastMessage[index] = message
-                lastTimes[index] = 0
+        var kickPlayer = false
+        player.get(Identity.UUID).ifPresent { uuid ->
+            if (message != lastMessage.getOrDefault(uuid, "")) {
+                lastMessage[uuid] = message
+                lastTimes.remove(uuid)
             } else {
-                if (lastTimes[index]!! < 2) {
-                    lastTimes[index] = lastTimes[index]!! + 1
-                } else {
+                lastTimes.merge(uuid, 1, Int::plus)
+                if (lastTimes[uuid]!! >= 2) {
                     if (kick) {
-                        lastTimes[index] = 0
-                        return true
+                        lastTimes.remove(uuid)
+                        kickPlayer = true
                     }
                 }
             }
         }
-        return false
+        return kickPlayer
     }
 }
